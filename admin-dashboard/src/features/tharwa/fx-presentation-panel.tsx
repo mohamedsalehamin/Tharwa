@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   flagUrlFromMetadata,
+  instrumentEditorKey,
   type InstrumentRow,
   type QuoteCategoryLabel,
 } from '@/lib/admin-api'
@@ -94,7 +95,7 @@ export function FxPresentationPanel({
         <TableBody>
           {sorted.map((row) => (
             <FxRowEditor
-              key={row.id}
+              key={instrumentEditorKey(row)}
               row={row}
               token={token}
               saving={savingInstrumentId === row.id}
@@ -138,15 +139,6 @@ function FxRowEditor({
   )
   const [flagUrl, setFlagUrl] = useState(flagUrlFromMetadata(row))
   const [uploadingFlag, setUploadingFlag] = useState(false)
-
-  useEffect(() => {
-    setNameEn(row.displayNameEn)
-    setNameAr(row.displayNameAr)
-    setSortOrder(String(row.sortOrder))
-    setVisible(row.isConsumerVisible)
-    setQuoteCategory(quoteCategoryFromMetadata(row))
-    setFlagUrl(flagUrlFromMetadata(row))
-  }, [row])
 
   const dirty =
     nameEn !== row.displayNameEn ||

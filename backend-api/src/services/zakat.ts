@@ -154,7 +154,7 @@ export function resolveSilverValueEgp(
   return round2(silver.amount * row.amountEgp);
 }
 
-function buildPurposeNotes(input: ZakatComputeInput, goldGross: number, goldZakatable: number): ZakatPurposeNote[] {
+function buildPurposeNotes(input: ZakatComputeInput, goldGross: number): ZakatPurposeNote[] {
   const notes: ZakatPurposeNote[] = [];
 
   if (input.gold && goldGross > 0) {
@@ -238,7 +238,7 @@ export function computeZakat(
       ? buildHawlStatus(input.nisabAttainmentDate, input.yearType)
       : null;
 
-  const purposeNotes = buildPurposeNotes(input, goldGrossEgp, goldEgp);
+  const purposeNotes = buildPurposeNotes(input, goldGrossEgp);
 
   return {
     disclaimer: ZAKAT_DISCLAIMER,

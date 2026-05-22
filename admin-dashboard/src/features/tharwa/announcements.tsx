@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Megaphone, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { adminFetch } from '@/lib/admin-api'
@@ -94,6 +94,24 @@ function fromDatetimeLocal(value: string): string | null {
   const d = new Date(t)
   if (Number.isNaN(d.getTime())) return null
   return d.toISOString()
+}
+
+function subscribePreviewNow(onStoreChange: () => void) {
+  const id = window.setInterval(onStoreChange, 60_000)
+  return () => window.clearInterval(id)
+}
+
+function getPreviewNowMs() {
+  return Date.now()
+}
+
+function isAnnouncementPreviewActive(nowMs: number, form: AnnouncementForm): boolean {
+  const starts = form.startsAt ? new Date(form.startsAt).getTime() : null
+  const ends = form.endsAt ? new Date(form.endsAt).getTime() : null
+  if (!form.isEnabled) return false
+  if (starts !== null && !Number.isNaN(starts) && starts > nowMs) return false
+  if (ends !== null && !Number.isNaN(ends) && ends < nowMs) return false
+  return true
 }
 
 function rowToForm(row: AdminAnnouncement): AnnouncementForm {
@@ -199,15 +217,11 @@ export function AnnouncementsPanel() {
   const err = formErr ?? (error instanceof Error ? error.message : null)
   const formTitle = editingId ? 'Edit announcement' : 'New announcement'
 
-  const previewActive = useMemo(() => {
-    const now = Date.now()
-    const starts = form.startsAt ? new Date(form.startsAt).getTime() : null
-    const ends = form.endsAt ? new Date(form.endsAt).getTime() : null
-    if (!form.isEnabled) return false
-    if (starts !== null && !Number.isNaN(starts) && starts > now) return false
-    if (ends !== null && !Number.isNaN(ends) && ends < now) return false
-    return true
-  }, [form])
+  const previewNowMs = useSyncExternalStore(subscribePreviewNow, getPreviewNowMs, getPreviewNowMs)
+  const previewActive = useMemo(
+    () => isAnnouncementPreviewActive(previewNowMs, form),
+    [previewNowMs, form],
+  )
 
   function startCreate() {
     setEditingId(null)

@@ -209,6 +209,11 @@ export function roleLabel(role: AdminRole): string {
   return role === 'superadmin' ? 'Superadmin' : 'Operator'
 }
 
+/** Remount key for row editors when server-backed fields change (avoids syncing local state in an effect). */
+export function instrumentEditorKey(row: InstrumentRow): string {
+  return `${row.id}:${row.displayNameEn}:${row.displayNameAr}:${row.sortOrder}:${row.isConsumerVisible}:${JSON.stringify(row.metadata ?? null)}`
+}
+
 export function flagUrlFromMetadata(row: InstrumentRow): string | null {
   const m = row.metadata
   if (m && typeof m === 'object' && 'flagUrl' in m) {

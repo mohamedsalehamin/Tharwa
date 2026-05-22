@@ -4,13 +4,13 @@ import { Settings2 } from 'lucide-react'
 import {
   adminFetch,
   flagUrlFromMetadata,
+  instrumentEditorKey,
   type InstrumentRow,
   type KaratRuleRow,
 } from '@/lib/admin-api'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
@@ -82,19 +82,27 @@ export function MetalsPresentationPanel({
 
   useEffect(() => {
     if (!karatInstrument || !token) return
-    setLoadingRules(true)
-    setRulesErr(null)
+    let cancelled = false
     void adminFetch<{ items: KaratRuleRow[] }>(
       `/admin/v1/instruments/${karatInstrument.id}/karat-rules`,
       token,
     )
-      .then((res) => setRules(res.items?.length ? res.items : DEFAULT_RULES))
+      .then((res) => {
+        if (cancelled) return
+        setRules(res.items?.length ? res.items : DEFAULT_RULES)
+      })
       .catch((e) => {
+        if (cancelled) return
         const msg = e instanceof Error ? e.message : String(e)
         setRulesErr(msg)
         setRules(DEFAULT_RULES)
       })
-      .finally(() => setLoadingRules(false))
+      .finally(() => {
+        if (!cancelled) setLoadingRules(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [karatInstrument, token])
 
   async function saveKaratRules() {
@@ -166,14 +174,21 @@ export function MetalsPresentationPanel({
         <TableBody>
           {sorted.map((row) => (
             <MetalRowEditor
-              key={row.id}
+              key={instrumentEditorKey(row)}
               row={row}
               token={token}
               saving={savingInstrumentId === row.id}
               onSave={(body) => void onPatch(row.id, body)}
               onUploadFlag={(file) => onUploadFlag(row.id, file)}
               onEditKarat={
-                row.code === goldCode ? () => setKaratInstrument(row) : undefined
+                row.code === goldCode
+                  ? () => {
+                      setKaratInstrument(row)
+                      setRules(DEFAULT_RULES)
+                      setRulesErr(null)
+                      setLoadingRules(true)
+                    }
+                  : undefined
               }
             />
           ))}
@@ -352,13 +367,6 @@ function MetalRowEditor({
   const [visible, setVisible] = useState(row.isConsumerVisible)
   const [flagUrl, setFlagUrl] = useState(flagUrlFromMetadata(row))
   const [uploadingFlag, setUploadingFlag] = useState(false)
-
-  useEffect(() => {
-    setNameEn(row.displayNameEn)
-    setSortOrder(String(row.sortOrder))
-    setVisible(row.isConsumerVisible)
-    setFlagUrl(flagUrlFromMetadata(row))
-  }, [row])
 
   const dirty =
     nameEn !== row.displayNameEn ||

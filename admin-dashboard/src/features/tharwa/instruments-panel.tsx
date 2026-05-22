@@ -98,13 +98,13 @@ export function InstrumentsPanel({
           ? 'Curate the EGX symbol list shown in the mobile app.'
           : 'All instrument kinds — use tabs to focus FX or metals.'
 
+  const searchQTrimmed = searchQ.trim()
+  const displaySearchHits = searchQTrimmed.length < 2 ? [] : searchHits
+
   useEffect(() => {
     if (!addOpen || !token) return
     const q = searchQ.trim()
-    if (q.length < 2) {
-      setSearchHits([])
-      return
-    }
+    if (q.length < 2) return
     const t = window.setTimeout(() => {
       setSearching(true)
       void adminFetch<{ items: EgxSearchHit[] }>(
@@ -309,9 +309,9 @@ export function InstrumentsPanel({
               {searching ? (
                 <p className='text-xs text-muted-foreground'>Searching…</p>
               ) : null}
-              {searchHits.length > 0 ? (
+              {displaySearchHits.length > 0 ? (
                 <ul className='max-h-40 overflow-y-auto rounded-md border text-sm'>
-                  {searchHits.map((hit) => (
+                  {displaySearchHits.map((hit) => (
                     <li key={hit.symbol}>
                       <button
                         type='button'

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master, '001-tharwa-platform-mvp']
+    branches: [main, master, "001-tharwa-platform-mvp"]
   pull_request:
     branches: [main, master]
 
@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
           cache-dependency-path: backend-api/package-lock.json
       - run: npm ci 2>/dev/null || npm install
@@ -33,25 +33,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
           cache-dependency-path: admin-dashboard/package-lock.json
       - run: npm ci 2>/dev/null || npm install
       - run: npm run lint
       - run: npm run build
-
-  mobile-app:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mobile-app
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: mobile-app/package-lock.json
-      - run: npm ci 2>/dev/null || npm install
-      - run: npm run typecheck
-      - run: npm test

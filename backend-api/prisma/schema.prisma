@@ -1,0 +1,405 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum InstrumentKind {
+  fx
+  metal
+  equity
+}
+
+enum QuoteCategory {
+  official
+  indicative
+  estimate
+}
+
+enum SessionState {
+  open
+  closed
+  pre
+  post
+  unknown
+}
+
+enum JournalSide {
+  buy
+  sell
+}
+
+enum UpstreamType {
+  fx
+  metals
+  equities
+}
+
+enum MetalUnit {
+  gram
+  troy_ounce
+}
+
+enum OhlcvResolution {
+  d1
+  w1
+  m1
+  y1
+}
+
+enum PriceAlertDirection {
+  above
+  below
+}
+
+enum PushPlatform {
+  ios
+  android
+}
+
+enum AnnouncementVariant {
+  info
+  warning
+  maintenance
+}
+
+model Instrument {
+  id                String          @id @default(uuid())
+  kind              InstrumentKind
+  code              String          @unique
+  displayNameAr     String          @map("display_name_ar")
+  displayNameEn     String          @map("display_name_en")
+  isConsumerVisible Boolean         @default(true) @map("is_consumer_visible")
+  sortOrder         Int             @default(0) @map("sort_order")
+  /// Equity: `{ "tvSymbol": "EGX:COMI" }`. Prefer typed relations for metals (see `metalKaratRules`).
+  metadata          Json?
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  quoteSnapshots  QuoteSnapshot[]
+  watchlistItems  WatchlistItem[]
+  journalEntries  TradeJournalEntry[]
+  simTrades       SimTrade[]
+  metalKaratRules MetalKaratRule[]
+  ohlcvBars       OhlcvBar[]
+  priceAlerts     PriceAlert[]
+
+  @@map("instruments")
+}
+
+/// Gold karat pricing derived from a 24k gram anchor (replaces untyped `metadata` karat math).
+model MetalKaratRule {
+  id               String     @id @default(uuid())
+  instrumentId     String     @map("instrument_id")
+  instrument       Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  karat            Int?
+  unit             MetalUnit  @default(gram)
+  /// `amountEgp = anchor24kGramEgp * priceNumerator / priceDenominator` (troy oz uses × ounce grams when unit is troy_ounce).
+  priceNumerator   Int        @default(21) @map("price_numerator")
+  priceDenominator Int        @default(24) @map("price_denominator")
+  sortOrder        Int        @default(0) @map("sort_order")
+  isActive         Boolean    @default(true) @map("is_active")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  @@unique([instrumentId, karat, unit])
+  @@map("metal_karat_rules")
+}
+
+model QuoteSnapshot {
+  id            String        @id @default(uuid())
+  instrumentId  String        @map("instrument_id")
+  instrument    Instrument    @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  asOf          DateTime      @map("as_of")
+  bid           Decimal?      @db.Decimal(24, 8)
+  ask           Decimal?      @db.Decimal(24, 8)
+  last          Decimal?      @db.Decimal(24, 8)
+  changePct     Decimal?      @map("change_pct") @db.Decimal(12, 6)
+  volume        BigInt?
+  quoteCategory QuoteCategory @map("quote_category")
+  sessionState  SessionState  @map("session_state")
+  raw           Json?
+
+  @@index([instrumentId, asOf(sort: Desc)])
+  @@map("quote_snapshots")
+}
+
+/// Persisted OHLCV for charting (optional cache behind live connector fetches).
+model OhlcvBar {
+  id           String          @id @default(uuid())
+  instrumentId String          @map("instrument_id")
+  instrument   Instrument      @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  resolution   OhlcvResolution
+  barTime      DateTime        @map("bar_time")
+  open         Decimal         @db.Decimal(24, 8)
+  high         Decimal         @db.Decimal(24, 8)
+  low          Decimal         @db.Decimal(24, 8)
+  close        Decimal         @db.Decimal(24, 8)
+  volume       BigInt?
+  source       String          @default("tradingview")
+  createdAt    DateTime        @default(now()) @map("created_at")
+
+  @@unique([instrumentId, resolution, barTime])
+  @@index([instrumentId, resolution, barTime(sort: Desc)])
+  @@map("ohlcv_bars")
+}
+
+model UpstreamConnection {
+  id            String       @id @default(uuid())
+  name          String
+  type          UpstreamType
+  enabled       Boolean      @default(true)
+  config        Json
+  secretRef     String?      @map("secret_ref")
+  lastSuccessAt DateTime?    @map("last_success_at")
+  lastError     String?      @map("last_error")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  @@map("upstream_connections")
+}
+
+model AdminUser {
+  id           String          @id @default(uuid())
+  email        String          @unique
+  passwordHash String          @map("password_hash")
+  totpSecret   String?         @map("totp_secret")
+  totpEnabled  Boolean         @default(false) @map("totp_enabled")
+  role         String          @default("operator")
+  createdAt    DateTime        @default(now()) @map("created_at")
+
+  auditLogs            AdminAuditLog[]
+  platformIntegrations PlatformIntegration[]
+  announcements        ConsumerAnnouncement[]
+
+  @@map("admin_users")
+}
+
+/// Admin-managed in-app banners (Eid greetings, EGX closure, maintenance, etc.).
+model ConsumerAnnouncement {
+  id               String              @id @default(uuid())
+  titleAr          String              @map("title_ar")
+  titleEn          String              @map("title_en")
+  bodyAr           String              @map("body_ar")
+  bodyEn           String              @map("body_en")
+  variant          AnnouncementVariant @default(info)
+  sortOrder        Int                 @default(0) @map("sort_order")
+  isEnabled        Boolean             @default(true) @map("is_enabled")
+  dismissible      Boolean             @default(true)
+  linkUrl          String?             @map("link_url")
+  startsAt         DateTime?           @map("starts_at")
+  endsAt           DateTime?           @map("ends_at")
+  createdByAdminId String?             @map("created_by_admin_id")
+  createdByAdmin   AdminUser?          @relation(fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  @@index([isEnabled, startsAt, endsAt, sortOrder])
+  @@map("consumer_announcements")
+}
+
+/// Admin-managed third-party credentials (FCM, etc.). Secrets are never returned on read APIs.
+model PlatformIntegration {
+  slug              String     @id
+  displayName       String     @map("display_name")
+  config            Json
+  updatedByAdminId  String?    @map("updated_by_admin_id")
+  updatedByAdmin    AdminUser? @relation(fields: [updatedByAdminId], references: [id], onDelete: SetNull)
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  @@map("platform_integrations")
+}
+
+model AdminAuditLog {
+  id          String    @id @default(uuid())
+  adminUserId String    @map("admin_user_id")
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  action      String
+  payload     Json?
+  ip          String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([adminUserId, createdAt(sort: Desc)])
+  @@map("admin_audit_logs")
+}
+
+model ConsumerUser {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String?   @map("password_hash")
+  authSubject     String?   @map("auth_subject")
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  watchlistItems      WatchlistItem[]
+  journalEntries      TradeJournalEntry[]
+  simAccount          SimAccount?
+  refreshTokens       ConsumerRefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  emailVerifications  EmailVerification[]
+  priceAlerts         PriceAlert[]
+  pushDevices         PushDevice[]
+  zakatSessions       ZakatSession[]
+
+  @@map("consumer_users")
+}
+
+/// Saved zakat calculator run (inputs + result snapshot).
+model ZakatSession {
+  id                  String       @id @default(uuid())
+  consumerUserId      String       @map("consumer_user_id")
+  consumerUser        ConsumerUser @relation(fields: [consumerUserId], references: [id], onDelete: Cascade)
+  label               String?
+  yearType            String       @map("year_type")
+  nisabAttainmentDate DateTime?    @map("nisab_attainment_date") @db.Date
+  inputs              Json
+  result              Json
+  zakatDueEgp         Decimal      @map("zakat_due_egp") @db.Decimal(24, 4)
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+
+  @@index([consumerUserId, createdAt(sort: Desc)])
+  @@map("zakat_sessions")
+}
+
+/// FCM device token for push notifications (anonymous or linked to a consumer account).
+model PushDevice {
+  id             String        @id @default(uuid())
+  fcmToken       String        @unique @map("fcm_token")
+  platform       PushPlatform
+  consumerUserId String?       @map("consumer_user_id")
+  consumerUser   ConsumerUser? @relation(fields: [consumerUserId], references: [id], onDelete: SetNull)
+  /// Client-stable id to re-link the same install when the FCM token rotates.
+  installId      String?       @map("install_id")
+  lastSeenAt     DateTime      @map("last_seen_at")
+  disabledAt     DateTime?     @map("disabled_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@index([consumerUserId])
+  @@index([platform, disabledAt])
+  @@index([installId])
+  @@map("push_devices")
+}
+
+model ConsumerRefreshToken {
+  id             String       @id @default(uuid())
+  consumerUserId String       @map("consumer_user_id")
+  consumerUser   ConsumerUser @relation(fields: [consumerUserId], references: [id], onDelete: Cascade)
+  tokenHash      String       @unique @map("token_hash")
+  expiresAt      DateTime     @map("expires_at")
+  revokedAt      DateTime?    @map("revoked_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([consumerUserId, expiresAt])
+  @@map("consumer_refresh_tokens")
+}
+
+model PasswordResetToken {
+  id             String       @id @default(uuid())
+  consumerUserId String       @map("consumer_user_id")
+  consumerUser   ConsumerUser @relation(fields: [consumerUserId], references: [id], onDelete: Cascade)
+  tokenHash      String       @unique @map("token_hash")
+  expiresAt      DateTime     @map("expires_at")
+  usedAt         DateTime?    @map("used_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([consumerUserId, expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerification {
+  id             String       @id @default(uuid())
+  consumerUserId String       @map("consumer_user_id")
+  consumerUser   ConsumerUser @relation(fields: [consumerUserId], references: [id], onDelete: Cascade)
+  tokenHash      String       @unique @map("token_hash")
+  expiresAt      DateTime     @map("expires_at")
+  verifiedAt     DateTime?    @map("verified_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([consumerUserId, expiresAt])
+  @@map("email_verifications")
+}
+
+model WatchlistItem {
+  id             String       @id @default(uuid())
+  consumerUserId String       @map("consumer_user_id")
+  consumerUser   ConsumerUser @relation(fields: [consumerUserId], references: [id], onDelete: Cascade)
+  instrumentId   String       @map("instrument_id")
+  instrument     Instrument   @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  position       Int          @default(0)
+
+  @@unique([consumerUserId, instrumentId])
+  @@map("watchlist_items")
+}
+
+model TradeJournalEntry {
+  id             String       @id @default(uuid())
+  consumerUserId String       @map("consumer_user_id")
+  consumerUser   ConsumerUser @relation(fields: [consumerUserId], references: [id], onDelete: Cascade)
+  instrumentId   String       @map("instrument_id")
+  instrument     Instrument   @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+  side           JournalSide
+  quantity       Decimal      @db.Decimal(24, 8)
+  price          Decimal      @db.Decimal(24, 8)
+  executedAt     DateTime     @map("executed_at") @db.Date
+  note           String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@map("trade_journal_entries")
+}
+
+/// Virtual practice account (paper trading) — separate from trade journal / portfolio.
+model SimAccount {
+  id              String       @id @default(uuid())
+  consumerUserId  String       @unique @map("consumer_user_id")
+  consumerUser    ConsumerUser @relation(fields: [consumerUserId], references: [id], onDelete: Cascade)
+  startingCashEgp Decimal      @map("starting_cash_egp") @db.Decimal(24, 4)
+  cashEgp         Decimal      @map("cash_egp") @db.Decimal(24, 4)
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  trades SimTrade[]
+
+  @@map("sim_accounts")
+}
+
+model SimTrade {
+  id           String       @id @default(uuid())
+  simAccountId String       @map("sim_account_id")
+  simAccount   SimAccount   @relation(fields: [simAccountId], references: [id], onDelete: Cascade)
+  instrumentId String       @map("instrument_id")
+  instrument   Instrument   @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+  side         JournalSide
+  quantity     Decimal      @db.Decimal(24, 8)
+  fillPriceEgp Decimal      @map("fill_price_egp") @db.Decimal(24, 8)
+  quoteAsOf    DateTime?    @map("quote_as_of")
+  filledAt     DateTime     @default(now()) @map("filled_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  @@index([simAccountId, filledAt(sort: Desc)])
+  @@map("sim_trades")
+}
+
+model PriceAlert {
+  id              String              @id @default(uuid())
+  consumerUserId  String              @map("consumer_user_id")
+  consumerUser    ConsumerUser        @relation(fields: [consumerUserId], references: [id], onDelete: Cascade)
+  instrumentId    String              @map("instrument_id")
+  instrument      Instrument          @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  direction       PriceAlertDirection
+  threshold       Decimal             @db.Decimal(24, 8)
+  isEnabled       Boolean             @default(true) @map("is_enabled")
+  lastTriggeredAt DateTime?           @map("last_triggered_at")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  @@index([consumerUserId, isEnabled])
+  @@index([instrumentId, isEnabled])
+  @@map("price_alerts")
+}

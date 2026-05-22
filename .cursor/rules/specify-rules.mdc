@@ -1,0 +1,18 @@
+---
+alwaysApply: true
+---
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the implementation plan at:
+
+**Plan:** `specs/001-tharwa-platform-mvp/plan.md`
+
+Supporting artifacts for the active feature:
+
+- **Spec:** `specs/001-tharwa-platform-mvp/spec.md`
+- **Research / decisions:** `specs/001-tharwa-platform-mvp/research.md`
+- **Data model:** `specs/001-tharwa-platform-mvp/data-model.md`
+- **API contract (OpenAPI):** `specs/001-tharwa-platform-mvp/contracts/openapi.yaml`
+- **Backend quickstart:** `specs/001-tharwa-platform-mvp/quickstart.md`
+<!-- SPECKIT END -->

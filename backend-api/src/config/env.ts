@@ -1,0 +1,150 @@
+import { z } from 'zod';
+
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  PORT: z.coerce.number().default(3000),
+  DATABASE_URL: z.string().min(1),
+  REDIS_URL: z.string().min(1),
+  CORS_ORIGINS: z
+    .string()
+    .default('http://localhost:3000,http://localhost:3001,http://localhost:8081')
+    .transform((s) =>
+      s
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean),
+    ),
+  FX_MOCK_JSON: z.string().optional(),
+  METALS_MOCK_JSON: z.string().optional(),
+  /** Bot token for Egyptian metals Telegram source (optional; use with TELEGRAM_METALS_CHANNEL_ID). */
+  TELEGRAM_METALS_BOT_TOKEN: z.string().min(10).optional(),
+  /** Public @username or numeric channel id (e.g. @GoldChannel, -100…). Bot should be channel admin for pinned message; t.me scrape works for public @ handles. */
+  TELEGRAM_METALS_CHANNEL_ID: z.string().min(1).optional(),
+  /**
+   * When true, also read unparsed `getUpdates` channel posts for this bot (latest wins over pin in merge).
+   * Only one process may long-poll per bot token (409 otherwise). Default off for multi-replica APIs.
+   */
+  TELEGRAM_METALS_PEEK_UPDATES: z
+    .string()
+    .optional()
+    .transform((s) => (s ?? '').toLowerCase() === 'true' || (s ?? '').trim() === '1'),
+  /** `tradingview` uses [@mathieuc/tradingview](https://github.com/Mathieu2301/TradingView-API); `http` uses open.er-api (USD base). */
+  FX_PROVIDER: z.enum(['http', 'tradingview']).default('tradingview'),
+  /** Optional JSON per base, e.g. `{"USD":"FX_IDC:USDEGP","AED":"SAXO:USDAED"}`. SAR/AED default to USD-cross unless overridden. */
+  FX_TV_SYMBOLS: z.string().optional(),
+  /** When `FX_PROVIDER=http`, full URL (default open.er-api USD latest). */
+  FX_HTTP_URL: z
+    .string()
+    .url()
+    .default('https://open.er-api.com/v6/latest/USD'),
+  /** When false, curated equity endpoints omit live TradingView chart quotes. */
+  EQUITIES_TV_ENABLED: z
+    .string()
+    .optional()
+    .default('true')
+    .transform((s) => s.toLowerCase() !== 'false' && s !== '0'),
+  /** HS256 secret for admin JWT (min 32 chars recommended; change in production). */
+  ADMIN_JWT_SECRET: z.string().min(16).default('dev-admin-jwt-secret-change-me-32chars'),
+  ADMIN_ACCESS_TOKEN_TTL_SEC: z.coerce.number().int().min(300).max(86400).default(3600),
+  /** HS256 secret for consumer JWT (separate from admin). */
+  CONSUMER_JWT_SECRET: z.string().min(16).default('dev-consumer-jwt-secret-change-32ch'),
+  CONSUMER_ACCESS_TOKEN_TTL_SEC: z.coerce.number().int().min(300).max(7776000).default(604800),
+  CONSUMER_REFRESH_TOKEN_TTL_SEC: z.coerce.number().int().min(3600).max(7776000).default(2592000),
+  PASSWORD_RESET_TOKEN_TTL_SEC: z.coerce.number().int().min(300).max(86400).default(3600),
+  EMAIL_VERIFICATION_TOKEN_TTL_SEC: z.coerce.number().int().min(300).max(604800).default(86400),
+  /** Resend API key — when unset, transactional emails are logged only (dev). */
+  RESEND_API_KEY: z.string().min(10).optional(),
+  /** Verified sender in Resend, e.g. `Tharwa <noreply@yourdomain.com>`. */
+  RESEND_FROM: z.string().min(3).default('Tharwa <onboarding@resend.dev>'),
+  /** Deep link or HTTPS URL base for password reset (token appended as `?token=`). */
+  CONSUMER_PASSWORD_RESET_URL: z.string().min(8).default('tharwa://reset-password'),
+  /** Deep link or HTTPS URL base for email verification. */
+  CONSUMER_EMAIL_VERIFY_URL: z.string().min(8).default('tharwa://verify-email'),
+  /** `Instrument.code` for gold karat rules (default `GOLD_EGP`). */
+  METALS_GOLD_INSTRUMENT_CODE: z.string().min(1).default('GOLD_EGP'),
+  /** When true, upsert equity chart bars into `ohlcv_bars` after upstream fetch. */
+  OHLCV_PERSIST_ENABLED: z
+    .string()
+    .optional()
+    .default('true')
+    .transform((s) => s.toLowerCase() !== 'false' && s !== '0'),
+  /** Per-IP sliding window for GET `/v1/fx/rates`, `/v1/metals`, `/v1/stocks*`. */
+  PUBLIC_RATE_LIMIT_MAX_PER_MINUTE: z.coerce.number().int().min(10).max(10_000).default(120),
+  /** Browser `max-age` for public market GET responses. */
+  PUBLIC_HTTP_MAX_AGE_SEC: z.coerce.number().int().min(0).max(3600).default(30),
+  /** CDN `s-maxage` (aligns with ~90s upstream poll target). */
+  PUBLIC_HTTP_S_MAXAGE_SEC: z.coerce.number().int().min(0).max(3600).default(90),
+  /** CDN `stale-while-revalidate` (fresh + SWR ≈ 300s stale policy). */
+  PUBLIC_HTTP_STALE_WHILE_REVALIDATE_SEC: z.coerce.number().int().min(0).max(86400).default(210),
+  /** Directory for admin-uploaded public files (FX flags, etc.). */
+  PUBLIC_UPLOADS_DIR: z.string().min(1).default('./data/uploads'),
+  /**
+   * Public origin for uploaded files in API responses (e.g. `http://localhost:3000`).
+   * When unset, built from request host in dev uploads.
+   */
+  PUBLIC_FILES_ORIGIN: z.string().url().optional(),
+  /** Redis lock TTL while a single upstream fetch runs. */
+  REDIS_CACHE_LOCK_TTL_SEC: z.coerce.number().int().min(5).max(300).default(45),
+  /** Max wait for followers when another replica holds the upstream lock. */
+  REDIS_CACHE_WAIT_MS: z.coerce.number().int().min(1000).max(120_000).default(25_000),
+  /** Background cache warming for FX/metals (and EGX when session allows). */
+  UPSTREAM_POLL_ENABLED: z
+    .string()
+    .optional()
+    .default('true')
+    .transform((s) => s.toLowerCase() !== 'false' && s !== '0'),
+  /** FX + metals poll cadence (seconds). */
+  UPSTREAM_POLL_INTERVAL_SEC: z.coerce.number().int().min(30).max(600).default(90),
+  /** EGX poll cadence while cash session is open. */
+  UPSTREAM_POLL_EGX_OPEN_SEC: z.coerce.number().int().min(30).max(600).default(90),
+  /** EGX poll cadence during pre/post (still in Cairo trading week). */
+  UPSTREAM_POLL_EGX_OFFHOURS_SEC: z.coerce.number().int().min(60).max(3600).default(300),
+  /** Leader lock TTL — must exceed slow upstream ticks. */
+  UPSTREAM_POLL_LEADER_TTL_SEC: z.coerce.number().int().min(30).max(600).default(120),
+  SERVICE_NAME: z.string().min(1).default('tharwa-backend-api'),
+  BUILD_SHA: z.string().min(1).default('dev'),
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
+  /** e.g. `http://localhost:4318/v1/traces` — when set, enables OpenTelemetry export. */
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+  /** How `upstream_connections.secret_ref` is resolved. MVP: `env` only — see `docs/secrets.md`. */
+  SECRETS_BACKEND: z.enum(['env']).default('env'),
+  /** Virtual EGP balance when a user starts practice trading. */
+  SIM_STARTING_CASH_EGP: z.coerce.number().positive().max(1_000_000_000).default(100_000),
+  /** Reject sim market fills when indicative quote is older than this (seconds). */
+  SIM_MAX_QUOTE_AGE_SEC: z.coerce.number().int().min(60).max(86_400).default(300),
+  /** Firebase service account JSON (stringified) for FCM — required to send push from admin. */
+  FCM_SERVICE_ACCOUNT_JSON: z.string().min(20).optional(),
+  /** Comma-separated Google OAuth client IDs (Web + iOS + Android) allowed as `aud` on ID tokens. */
+  GOOGLE_OAUTH_CLIENT_IDS: z
+    .string()
+    .optional()
+    .transform((s) =>
+      (s ?? '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean),
+    ),
+  /** Apple Sign In client IDs (bundle id / service id), comma-separated. Defaults to `com.tharwa`. */
+  APPLE_SIGN_IN_CLIENT_IDS: z
+    .string()
+    .optional()
+    .transform((s) => {
+      const ids = (s ?? 'com.tharwa')
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+      return ids.length > 0 ? ids : ['com.tharwa'];
+    }),
+});
+
+export type Env = z.infer<typeof envSchema>;
+
+export function loadEnv(): Env {
+  const parsed = envSchema.safeParse(process.env);
+  if (!parsed.success) {
+    console.error(parsed.error.flatten().fieldErrors);
+    throw new Error('Invalid environment configuration');
+  }
+  return parsed.data;
+}

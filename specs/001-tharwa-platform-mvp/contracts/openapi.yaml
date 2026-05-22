@@ -1,0 +1,2687 @@
+openapi: 3.1.0
+info:
+  title: Tharwa API
+  version: 1.0.0
+  description: >
+    Backend for Tharwa (ثروة). Public read endpoints are unauthenticated for MVP market browsing.
+    Admin routes are under /admin/v1 (separate security scheme). Parallel EGP is not in MVP.
+servers:
+  - url: https://api.example.com
+    description: Production (replace with real host)
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Health
+  - name: Contract
+  - name: Market
+  - name: Admin
+  - name: Consumer
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Liveness and dependency checks
+      operationId: getHealth
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /v1/openapi.yaml:
+    get:
+      tags: [Contract]
+      summary: Machine-readable API contract (YAML)
+      description: Same OpenAPI document as the repository `contracts/openapi.yaml`; served for tooling and client generation.
+      operationId: getOpenapiYaml
+      responses:
+        "200":
+          description: OpenAPI 3.1 document
+          content:
+            application/yaml:
+              schema:
+                type: string
+        "500":
+          description: Spec file not found on server (misconfiguration)
+
+  /v1/openapi.json:
+    get:
+      tags: [Contract]
+      summary: Machine-readable API contract (JSON)
+      description: YAML contract parsed to JSON for clients that prefer JSON OpenAPI.
+      operationId: getOpenapiJson
+      responses:
+        "200":
+          description: OpenAPI 3.1 document as JSON object
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Spec file not found on server (misconfiguration)
+
+  /v1/fx/rates:
+    get:
+      tags: [Market]
+      summary: Official-category FX versus EGP
+      operationId: listFxRates
+      responses:
+        "200":
+          description: Current FX snapshot list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, disclaimer]
+                properties:
+                  disclaimer:
+                    type: string
+                    description: Non-advisory disclaimer text key or literal for client display
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FxRateItem"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/metals:
+    get:
+      tags: [Market]
+      summary: Gold and silver reference prices in EGP
+      operationId: listMetals
+      responses:
+        "200":
+          description: Metals snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, disclaimer]
+                properties:
+                  disclaimer:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MetalItem"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/market/summary:
+    get:
+      tags: [Market]
+      summary: Compact home summary (subset of FX + metals + optional index placeholder)
+      operationId: getMarketSummary
+      responses:
+        "200":
+          description: Summary bundle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketSummary"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/stocks:
+    get:
+      tags: [Market]
+      summary: Curated Egyptian equities list
+      operationId: listStocks
+      responses:
+        "200":
+          description: Curated list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, disclaimer]
+                properties:
+                  disclaimer:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EquityListItem"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/stocks/{symbol}:
+    get:
+      tags: [Market]
+      summary: Equity detail headline fields
+      operationId: getStockDetail
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+            example: EGX:COMI
+      responses:
+        "200":
+          description: Detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EquityDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/stocks/{symbol}/history:
+    get:
+      tags: [Market]
+      summary: Historical candles for charting
+      operationId: getStockHistory
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: range
+          in: query
+          schema:
+            type: string
+            enum: [1d, 1w, 1m, 1y]
+            default: 1m
+      responses:
+        "200":
+          description: OHLCV series
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistorySeries"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/auth/register:
+    post:
+      tags: [Consumer]
+      summary: Register consumer (password)
+      operationId: consumerRegister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsumerRegisterRequest"
+      responses:
+        "201":
+          description: Created + bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsumerAuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/auth/social:
+    post:
+      tags: [Consumer]
+      summary: Sign in or register with Google or Apple ID token
+      operationId: consumerSocialLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsumerSocialLoginRequest"
+      responses:
+        "200":
+          description: Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsumerAuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/auth/login:
+    post:
+      tags: [Consumer]
+      summary: Consumer password login
+      operationId: consumerLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsumerLoginRequest"
+      responses:
+        "200":
+          description: Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsumerAuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/auth/forgot-password:
+    post:
+      tags: [Consumer]
+      summary: Request password reset email
+      operationId: consumerForgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsumerForgotPasswordRequest"
+      responses:
+        "200":
+          description: Generic success (does not reveal whether email exists)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsumerMessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/auth/reset-password:
+    post:
+      tags: [Consumer]
+      summary: Set new password with reset token
+      operationId: consumerResetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsumerResetPasswordRequest"
+      responses:
+        "200":
+          description: New password set; returns auth tokens
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsumerAuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/auth/verify-email:
+    post:
+      tags: [Consumer]
+      summary: Verify email with token from registration email
+      operationId: consumerVerifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsumerVerifyEmailRequest"
+      responses:
+        "200":
+          description: Email verified
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [verified]
+                properties:
+                  verified:
+                    type: boolean
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/announcements:
+    get:
+      tags: [Consumer]
+      summary: List active in-app announcement banners
+      operationId: listAnnouncements
+      responses:
+        "200":
+          description: Active announcements for the current schedule window
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnouncementListResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/auth/account:
+    delete:
+      tags: [Consumer]
+      summary: Permanently delete signed-in consumer account
+      description: >
+        Password reconfirmation when the account has a password. OAuth-only accounts
+        may omit password. Deletes watchlist, trade journal, portfolio positions,
+        practice/sim account, price alerts, refresh tokens, and other personal data.
+        Push devices linked to the account are unlinked (not deleted).
+      operationId: consumerDeleteAccount
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsumerDeleteAccountRequest"
+      responses:
+        "204":
+          description: Account deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/watchlist:
+    get:
+      tags: [Consumer]
+      summary: List watchlist
+      operationId: listWatchlist
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Watchlist items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchlistListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Consumer]
+      summary: Add instrument to watchlist
+      operationId: addWatchlistItem
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WatchlistAddRequest"
+      responses:
+        "201":
+          description: Created item
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item:
+                    $ref: "#/components/schemas/WatchlistItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/watchlist/items/{id}:
+    delete:
+      tags: [Consumer]
+      summary: Remove watchlist item
+      operationId: deleteWatchlistItem
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/watchlist/reorder:
+    patch:
+      tags: [Consumer]
+      summary: Reorder watchlist
+      operationId: reorderWatchlist
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WatchlistReorderRequest"
+      responses:
+        "200":
+          description: Full ordered list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchlistListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/journal:
+    get:
+      tags: [Consumer]
+      summary: List trade journal entries
+      operationId: listJournal
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Journal lines
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Consumer]
+      summary: Add journal entry
+      operationId: createJournalEntry
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JournalCreateRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item:
+                    $ref: "#/components/schemas/JournalEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/journal/{id}:
+    patch:
+      tags: [Consumer]
+      summary: Update journal entry (note, price, executed date)
+      operationId: patchJournalEntry
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JournalPatchRequest"
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item:
+                    $ref: "#/components/schemas/JournalEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Consumer]
+      summary: Delete journal entry
+      operationId: deleteJournalEntry
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/portfolio/summary:
+    get:
+      tags: [Consumer]
+      summary: Portfolio summary from journal (self-reported)
+      operationId: getPortfolioSummary
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Aggregated positions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfolioSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/portfolio/positions/{instrumentId}:
+    delete:
+      tags: [Consumer]
+      summary: Remove position (deletes all journal lines for instrument)
+      operationId: deletePortfolioPosition
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: instrumentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Position removed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/zakat/nisab:
+    get:
+      tags: [Market]
+      summary: Current nisab threshold from 21k gold gram price
+      operationId: getZakatNisab
+      responses:
+        "200":
+          description: Nisab snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZakatNisab"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/zakat/compute:
+    post:
+      tags: [Market]
+      summary: Compute estimated zakat from asset inputs
+      operationId: computeZakat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ZakatComputeRequest"
+      responses:
+        "200":
+          description: Zakat estimate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZakatComputeResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/zakat/prefill:
+    get:
+      tags: [Consumer]
+      summary: Prefill equity values from trade journal portfolio
+      operationId: getZakatPrefill
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Journal-based prefill lines
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZakatPrefill"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/zakat/methodology:
+    get:
+      tags: [Market]
+      summary: Zakat calculator methodology sections (AR/EN)
+      operationId: getZakatMethodology
+      responses:
+        "200":
+          description: Educational methodology content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZakatMethodology"
+
+  /v1/zakat/sessions:
+    get:
+      tags: [Consumer]
+      summary: List saved zakat calculation sessions
+      operationId: listZakatSessions
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Recent sessions (newest first)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ZakatSessionSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Consumer]
+      summary: Save a zakat calculation session
+      operationId: createZakatSession
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ZakatSessionCreate"
+      responses:
+        "201":
+          description: Saved session with fresh compute result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZakatSessionCreateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/zakat/sessions/{id}:
+    get:
+      tags: [Consumer]
+      summary: Load a saved zakat session
+      operationId: getZakatSession
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Session inputs and result snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZakatSessionDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Consumer]
+      summary: Delete a saved zakat session
+      operationId: deleteZakatSession
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/v1/auth/login:
+    post:
+      tags: [Admin]
+      summary: Issue admin access JWT
+      operationId: adminAuthLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLoginRequest"
+      responses:
+        "200":
+          description: Bearer access token (HS256) for subsequent admin calls
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminLoginResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/v1/upstreams:
+    get:
+      tags: [Admin]
+      summary: List upstream connector status (admin only)
+      operationId: adminListUpstreams
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Upstream rows with health status, config, and secretRef (env key name only)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUpstreamsList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Admin]
+      summary: Create upstream connector (config JSON; secretRef is opaque KMS/env key name, not the secret value)
+      operationId: adminCreateUpstream
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUpstreamCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item:
+                    $ref: "#/components/schemas/UpstreamStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/v1/upstreams/{id}:
+    patch:
+      tags: [Admin]
+      summary: Update upstream connector (enable/disable or rename)
+      operationId: adminPatchUpstream
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUpstreamPatch"
+      responses:
+        "200":
+          description: Updated upstream status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item:
+                    $ref: "#/components/schemas/UpstreamStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Admin]
+      summary: Delete upstream connector
+      operationId: adminDeleteUpstream
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/v1/ops/invalidate-cache:
+    post:
+      tags: [Admin]
+      summary: Invalidate Redis market cache keys (recovery after upstream fix)
+      operationId: adminInvalidateMarketCache
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminInvalidateCacheRequest"
+      responses:
+        "200":
+          description: Keys deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInvalidateCacheResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/v1/audit-logs:
+    get:
+      tags: [Admin]
+      summary: List admin audit log entries (read-only, paginated)
+      operationId: adminListAuditLogs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: action
+          in: query
+          description: Substring match on action (case-insensitive)
+          schema:
+            type: string
+        - name: adminUserId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: adminEmail
+          in: query
+          description: Substring match on admin user email
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: Inclusive start (YYYY-MM-DD or ISO datetime, UTC)
+          schema:
+            type: string
+        - name: to
+          in: query
+          description: Inclusive end (YYYY-MM-DD uses end of that UTC day)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Audit log page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAuditLogsList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/v1/announcements:
+    get:
+      tags: [Admin]
+      summary: List all in-app announcements (including disabled)
+      operationId: adminListAnnouncements
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Announcement rows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnnouncementListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Admin]
+      summary: Create in-app announcement
+      operationId: adminCreateAnnouncement
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAnnouncementUpsert"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item:
+                    $ref: "#/components/schemas/AdminAnnouncement"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/v1/announcements/{id}:
+    patch:
+      tags: [Admin]
+      summary: Update in-app announcement
+      operationId: adminPatchAnnouncement
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAnnouncementUpsert"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item:
+                    $ref: "#/components/schemas/AdminAnnouncement"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Admin]
+      summary: Delete in-app announcement
+      operationId: adminDeleteAnnouncement
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/v1/users:
+    get:
+      tags: [Admin]
+      summary: List consumer users (paginated)
+      operationId: adminListUsers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: q
+          in: query
+          description: Case-insensitive email substring filter
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Consumer user rows (no password hashes)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total, limit, offset]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdminConsumerUser"
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/v1/instruments:
+    get:
+      tags: [Admin]
+      summary: List instruments (admin view, full rows)
+      operationId: adminListInstruments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: kind
+          in: query
+          schema:
+            type: string
+            enum: [fx, metal, equity]
+      responses:
+        "200":
+          description: Instrument rows
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdminInstrument"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Admin]
+      summary: Create curated EGX equity instrument
+      operationId: adminCreateInstrument
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminEquityInstrumentCreate"
+      responses:
+        "201":
+          description: Created instrument
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item:
+                    $ref: "#/components/schemas/AdminInstrument"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Instrument code already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /admin/v1/instruments/egx-search:
+    get:
+      tags: [Admin]
+      summary: Search EGX symbols via TradingView (for admin add-equity flow)
+      operationId: adminSearchEgxInstruments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Matching EGX symbols with optional existing instrument id
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [q, items]
+                properties:
+                  q:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdminEgxSearchHit"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/v1/instruments/{id}/karat-rules:
+    get:
+      tags: [Admin]
+      summary: List metal karat presentation rules
+      operationId: adminGetInstrumentKaratRules
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Karat rules for a metal instrument
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKaratRulesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Admin]
+      summary: Replace metal karat presentation rules
+      operationId: adminPutInstrumentKaratRules
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminKaratRulesPut"
+      responses:
+        "200":
+          description: Updated rules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKaratRulesResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/v1/instruments/{id}:
+    patch:
+      tags: [Admin]
+      summary: Partial update instrument (visibility, sort, display names, metadata)
+      operationId: adminPatchInstrument
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminInstrumentPatch"
+      responses:
+        "200":
+          description: Updated instrument
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item:
+                    $ref: "#/components/schemas/AdminInstrument"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    BadRequest:
+      description: Validation or bad input
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    Unauthorized:
+      description: Missing or invalid credentials / token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    TooManyRequests:
+      description: Rate limited
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    ServiceUnavailable:
+      description: Upstream unavailable and no acceptable cache
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+
+  schemas:
+    ErrorBody:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+    HealthResponse:
+      type: object
+      required: [status, checks]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [ok, fail]
+
+    QuoteMeta:
+      type: object
+      required: [asOf, quoteCategory, sessionState, isStale]
+      properties:
+        asOf:
+          type: string
+          format: date-time
+        quoteCategory:
+          type: string
+          enum: [official, indicative, estimate]
+        sessionState:
+          type: string
+          enum: [open, closed, pre, post, unknown]
+        isStale:
+          type: boolean
+
+    FxRateItem:
+      allOf:
+        - $ref: "#/components/schemas/QuoteMeta"
+        - type: object
+          required: [baseCurrency, quoteCurrency, rate]
+          properties:
+            baseCurrency:
+              type: string
+              example: USD
+            quoteCurrency:
+              type: string
+              example: EGP
+            rate:
+              type: number
+              format: double
+            changePct:
+              type: number
+              format: double
+              nullable: true
+            displayNameEn:
+              type: string
+              description: Consumer label from admin instruments (English)
+            displayNameAr:
+              type: string
+              description: Consumer label from admin instruments (Arabic)
+            flagUrl:
+              type: string
+              description: Admin-uploaded flag image (absolute URL or `/files/fx-flags/...`)
+
+    MetalItem:
+      allOf:
+        - $ref: "#/components/schemas/QuoteMeta"
+        - type: object
+          required: [metal, unit, amountEgp]
+          properties:
+            metal:
+              type: string
+              enum: [gold, silver]
+            unit:
+              type: string
+              enum: [gram, troy_ounce]
+            karat:
+              type: integer
+              enum: [18, 21, 24]
+              nullable: true
+            amountEgp:
+              type: number
+              format: double
+            flagUrl:
+              type: string
+              description: Admin-uploaded metal icon (gold or silver instrument)
+
+    EquityListItem:
+      allOf:
+        - $ref: "#/components/schemas/QuoteMeta"
+        - type: object
+          required: [instrumentId, symbol, name]
+          properties:
+            instrumentId:
+              type: string
+              format: uuid
+            symbol:
+              type: string
+            name:
+              type: string
+            nameAr:
+              type: string
+              description: Official display name in Arabic (curated instruments)
+            last:
+              type: number
+              format: double
+              nullable: true
+            changePct:
+              type: number
+              format: double
+              nullable: true
+
+    EquityDetail:
+      allOf:
+        - $ref: "#/components/schemas/EquityListItem"
+        - type: object
+          properties:
+            volume:
+              type: integer
+              format: int64
+              nullable: true
+            high:
+              type: number
+              format: double
+              nullable: true
+            low:
+              type: number
+              format: double
+              nullable: true
+            open:
+              type: number
+              format: double
+              nullable: true
+              description: Session reference open (daily bar) when available
+            exchange:
+              type: string
+              example: EGX
+            tvSymbol:
+              type: string
+              description: Upstream chart symbol identifier (non-secret)
+            profile:
+              nullable: true
+              allOf:
+                - $ref: "#/components/schemas/EquityScannerProfile"
+            relatedStocks:
+              type: array
+              items:
+                $ref: "#/components/schemas/EquityRelatedStockRow"
+
+    EquityScannerProfile:
+      type: object
+      description: TradingView Egypt scanner snapshot (indicative; may differ from official filings).
+      properties:
+        tickerName: { type: string }
+        description: { type: string, nullable: true }
+        close: { type: number, format: double, nullable: true }
+        changePct: { type: number, format: double, nullable: true }
+        volume: { type: integer, format: int64, nullable: true }
+        marketCap: { type: number, format: double, nullable: true }
+        dividendYield: { type: number, format: double, nullable: true }
+        peTtm: { type: number, format: double, nullable: true }
+        epsTtm: { type: number, format: double, nullable: true }
+        revenueFyHistory:
+          type: array
+          items: { type: number, format: double }
+          nullable: true
+        sector: { type: string, nullable: true }
+        industry: { type: string, nullable: true }
+        floatShares: { type: integer, format: int64, nullable: true }
+        sharesOutstanding: { type: integer, format: int64, nullable: true }
+        beta1Y: { type: number, format: double, nullable: true }
+        employees: { type: integer, nullable: true }
+        isin: { type: string, nullable: true }
+        currency: { type: string, nullable: true }
+        netIncomeFyHistory:
+          type: array
+          items: { type: number, format: double }
+          nullable: true
+        recommendAll:
+          type: number
+          format: double
+          nullable: true
+          description: Aggregate technical rating −1…1 (TradingView Recommend.All)
+        recommendMovingAverages:
+          type: number
+          format: double
+          nullable: true
+          description: Moving-average aggregate (TradingView Recommend.MA)
+        recommendOscillators:
+          type: number
+          format: double
+          nullable: true
+          description: Oscillator aggregate (TradingView Recommend.Other)
+
+    EquityRelatedStockRow:
+      type: object
+      required: [symbol, name, close, changePct]
+      properties:
+        symbol: { type: string }
+        name: { type: string }
+        close: { type: number, format: double }
+        changePct: { type: number, format: double }
+
+    HistorySeries:
+      type: object
+      required: [symbol, resolution, points]
+      properties:
+        symbol:
+          type: string
+        resolution:
+          type: string
+          example: 1d
+        points:
+          type: array
+          items:
+            type: object
+            required: [t, o, h, l, c]
+            properties:
+              t:
+                type: string
+                format: date-time
+              o:
+                type: number
+              h:
+                type: number
+              l:
+                type: number
+              c:
+                type: number
+              v:
+                type: integer
+                format: int64
+                nullable: true
+
+    MarketSummary:
+      type: object
+      required: [disclaimer, fx, metals]
+      properties:
+        disclaimer:
+          type: string
+        fx:
+          type: array
+          items:
+            $ref: "#/components/schemas/FxRateItem"
+        metals:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetalItem"
+        indexPlaceholder:
+          type: string
+          nullable: true
+          description: Reserved for EGX30 headline when wired
+        egxSessionState:
+          type: string
+          enum: [open, closed, pre, post, unknown]
+          nullable: true
+          description: EGX cash session hint (Africa/Cairo); indicative for MVP
+
+    UpstreamStatus:
+      type: object
+      required: [id, name, type, enabled, config, secretRef, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [fx, metals, equities]
+        enabled:
+          type: boolean
+        config:
+          type: object
+          additionalProperties: true
+        secretRef:
+          type: string
+          nullable: true
+          description: Opaque env var name (e.g. TELEGRAM_METALS_BOT_TOKEN), never the secret value
+        lastSuccessAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastError:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [healthy, degraded, down, disabled, unknown]
+
+    AdminLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+
+    AdminLoginResponse:
+      type: object
+      required: [accessToken, tokenType, expiresIn]
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          description: Access token TTL in seconds
+
+    AdminUpstreamPatch:
+      type: object
+      minProperties: 1
+      properties:
+        enabled:
+          type: boolean
+        name:
+          type: string
+          minLength: 1
+        config:
+          type: object
+          additionalProperties: true
+        secretRef:
+          type: string
+          nullable: true
+
+    AdminUpstreamCreate:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum: [fx, metals, equities]
+        enabled:
+          type: boolean
+        config:
+          type: object
+          additionalProperties: true
+        secretRef:
+          type: string
+          nullable: true
+
+    AdminUpstreamsList:
+      type: object
+      required: [items, summary, thresholds]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/UpstreamStatus"
+        summary:
+          type: object
+          properties:
+            healthy: { type: integer }
+            degraded: { type: integer }
+            down: { type: integer }
+            disabled: { type: integer }
+            unknown: { type: integer }
+        thresholds:
+          type: object
+          properties:
+            healthyMaxAgeSec: { type: integer }
+            degradedMaxAgeSec: { type: integer }
+
+    AdminInvalidateCacheRequest:
+      type: object
+      properties:
+        scopes:
+          type: array
+          items:
+            type: string
+            enum: [fx, metals, equities, all]
+          default: [all]
+
+    AdminInvalidateCacheResponse:
+      type: object
+      required: [scopes, deletedKeys, thresholds]
+      properties:
+        scopes:
+          type: array
+          items:
+            type: string
+        deletedKeys:
+          type: array
+          items:
+            type: string
+        thresholds:
+          type: object
+          properties:
+            healthyMaxAgeSec: { type: integer }
+            degradedMaxAgeSec: { type: integer }
+
+    AdminAuditLogEntry:
+      type: object
+      required: [id, action, createdAt, adminUser]
+      properties:
+        id:
+          type: string
+          format: uuid
+        action:
+          type: string
+        payload:
+          type: object
+          nullable: true
+          additionalProperties: true
+        ip:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        adminUser:
+          type: object
+          required: [id, email, role]
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type: string
+            role:
+              type: string
+
+    AdminAuditLogsList:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminAuditLogEntry"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    AdminConsumerUser:
+      type: object
+      required:
+        [
+          id,
+          email,
+          emailVerifiedAt,
+          hasPassword,
+          hasAuthSubject,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        emailVerifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        hasPassword:
+          type: boolean
+        hasAuthSubject:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AdminInstrument:
+      type: object
+      required:
+        [
+          id,
+          kind,
+          code,
+          displayNameAr,
+          displayNameEn,
+          isConsumerVisible,
+          sortOrder,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        code:
+          type: string
+        displayNameAr:
+          type: string
+        displayNameEn:
+          type: string
+        isConsumerVisible:
+          type: boolean
+        sortOrder:
+          type: integer
+        metadata:
+          type: object
+          nullable: true
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AdminEquityInstrumentCreate:
+      type: object
+      required: [code, displayNameEn]
+      properties:
+        code:
+          type: string
+          minLength: 1
+          description: EGX ticker without exchange prefix (e.g. COMI)
+        displayNameEn:
+          type: string
+          minLength: 1
+        displayNameAr:
+          type: string
+          minLength: 1
+        isConsumerVisible:
+          type: boolean
+          default: false
+        sortOrder:
+          type: integer
+        metadata:
+          type: object
+          properties:
+            tvSymbol:
+              type: string
+              description: Defaults to EGX:{code}
+
+    AdminEgxSearchHit:
+      type: object
+      required: [symbol, tvSymbol, description, exchange, alreadyExists]
+      properties:
+        symbol:
+          type: string
+        tvSymbol:
+          type: string
+        description:
+          type: string
+        exchange:
+          type: string
+        alreadyExists:
+          type: boolean
+        existingInstrumentId:
+          type: string
+          format: uuid
+          nullable: true
+
+    AdminKaratRule:
+      type: object
+      required: [karat, unit, priceNumerator, priceDenominator, sortOrder, isActive]
+      properties:
+        karat:
+          type: integer
+          nullable: true
+        unit:
+          type: string
+          enum: [gram, troy_ounce]
+        priceNumerator:
+          type: integer
+        priceDenominator:
+          type: integer
+        sortOrder:
+          type: integer
+        isActive:
+          type: boolean
+
+    AdminKaratRulesPut:
+      type: object
+      required: [rules]
+      properties:
+        rules:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items:
+            $ref: "#/components/schemas/AdminKaratRule"
+
+    AdminKaratRulesResponse:
+      type: object
+      required: [instrumentId, items]
+      properties:
+        instrumentId:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/AdminKaratRule"
+              - type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+
+    AdminInstrumentPatch:
+      type: object
+      minProperties: 1
+      properties:
+        isConsumerVisible:
+          type: boolean
+        sortOrder:
+          type: integer
+        displayNameAr:
+          type: string
+          minLength: 1
+        displayNameEn:
+          type: string
+          minLength: 1
+        metadata:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Replace metadata; send null to clear
+
+    ConsumerRegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+
+    ConsumerLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+
+    ConsumerSocialLoginRequest:
+      type: object
+      required: [provider, idToken]
+      properties:
+        provider:
+          type: string
+          enum: [google, apple]
+        idToken:
+          type: string
+          minLength: 20
+          maxLength: 8192
+
+    ConsumerForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    ConsumerResetPasswordRequest:
+      type: object
+      required: [resetToken, newPassword]
+      properties:
+        resetToken:
+          type: string
+          minLength: 20
+          maxLength: 512
+        newPassword:
+          type: string
+          minLength: 8
+          maxLength: 128
+
+    ConsumerVerifyEmailRequest:
+      type: object
+      required: [verificationToken]
+      properties:
+        verificationToken:
+          type: string
+          minLength: 20
+          maxLength: 512
+
+    ConsumerDeleteAccountRequest:
+      type: object
+      properties:
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+
+    ConsumerMessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    AnnouncementVariant:
+      type: string
+      enum: [info, warning, maintenance]
+
+    AnnouncementPublic:
+      type: object
+      required: [id, titleAr, titleEn, bodyAr, bodyEn, variant, dismissible]
+      properties:
+        id:
+          type: string
+          format: uuid
+        titleAr:
+          type: string
+        titleEn:
+          type: string
+        bodyAr:
+          type: string
+        bodyEn:
+          type: string
+        variant:
+          $ref: "#/components/schemas/AnnouncementVariant"
+        dismissible:
+          type: boolean
+        linkUrl:
+          type: string
+          nullable: true
+
+    AnnouncementListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnnouncementPublic"
+
+    AdminAnnouncement:
+      allOf:
+        - $ref: "#/components/schemas/AnnouncementPublic"
+        - type: object
+          required: [sortOrder, isEnabled, createdAt, updatedAt]
+          properties:
+            sortOrder:
+              type: integer
+            isEnabled:
+              type: boolean
+            startsAt:
+              type: string
+              format: date-time
+              nullable: true
+            endsAt:
+              type: string
+              format: date-time
+              nullable: true
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    AdminAnnouncementListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminAnnouncement"
+
+    AdminAnnouncementUpsert:
+      type: object
+      required: [titleAr, titleEn, bodyAr, bodyEn]
+      properties:
+        titleAr:
+          type: string
+          minLength: 1
+          maxLength: 200
+        titleEn:
+          type: string
+          minLength: 1
+          maxLength: 200
+        bodyAr:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        bodyEn:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        variant:
+          $ref: "#/components/schemas/AnnouncementVariant"
+        sortOrder:
+          type: integer
+        isEnabled:
+          type: boolean
+        dismissible:
+          type: boolean
+        linkUrl:
+          type: string
+          nullable: true
+        startsAt:
+          type: string
+          format: date-time
+          nullable: true
+        endsAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ConsumerAuthResponse:
+      type: object
+      required: [accessToken, tokenType, expiresIn, user]
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+        expiresIn:
+          type: integer
+        user:
+          type: object
+          required: [id, email]
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type: string
+
+    WatchlistAddRequest:
+      type: object
+      description: Provide instrumentId or symbol (EGX ticker); symbol creates/links a DB instrument when missing.
+      properties:
+        instrumentId:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+        displayNameEn:
+          type: string
+        displayNameAr:
+          type: string
+
+    WatchlistReorderRequest:
+      type: object
+      required: [orderedItemIds]
+      properties:
+        orderedItemIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    WatchlistItem:
+      type: object
+      required:
+        [
+          id,
+          instrumentId,
+          position,
+          code,
+          displayNameEn,
+          kind,
+          isConsumerVisible,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        instrumentId:
+          type: string
+          format: uuid
+        position:
+          type: integer
+        code:
+          type: string
+        displayNameEn:
+          type: string
+        kind:
+          type: string
+        isConsumerVisible:
+          type: boolean
+
+    WatchlistListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchlistItem"
+
+    JournalCreateRequest:
+      type: object
+      required: [instrumentId, side, quantity, price, executedAt]
+      properties:
+        instrumentId:
+          type: string
+          format: uuid
+        side:
+          type: string
+          enum: [buy, sell]
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+        price:
+          type: number
+          minimum: 0
+        executedAt:
+          type: string
+          format: date-time
+        note:
+          type: string
+          nullable: true
+
+    JournalPatchRequest:
+      type: object
+      minProperties: 1
+      properties:
+        note:
+          type: string
+          nullable: true
+        price:
+          type: number
+          minimum: 0
+        executedAt:
+          type: string
+          format: date-time
+
+    JournalEntry:
+      type: object
+      required:
+        [
+          id,
+          instrumentId,
+          code,
+          displayNameEn,
+          side,
+          quantity,
+          price,
+          executedAt,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        instrumentId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        displayNameEn:
+          type: string
+        side:
+          type: string
+          enum: [buy, sell]
+        quantity:
+          type: string
+        price:
+          type: string
+        executedAt:
+          type: string
+        note:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    JournalListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/JournalEntry"
+
+    PortfolioSummary:
+      type: object
+      required: [disclaimer, positions]
+      properties:
+        disclaimer:
+          type: string
+        positions:
+          type: array
+          items:
+            type: object
+            required: [instrumentId, code, displayNameEn, netQuantity]
+            properties:
+              instrumentId:
+                type: string
+                format: uuid
+              code:
+                type: string
+              displayNameEn:
+                type: string
+              netQuantity:
+                type: number
+              averageCost:
+                type: number
+                nullable: true
+              costBasis:
+                type: number
+                nullable: true
+              lastPrice:
+                type: number
+                nullable: true
+              marketValue:
+                type: number
+                nullable: true
+              unrealizedPl:
+                type: number
+                nullable: true
+              unrealizedPlPct:
+                type: number
+                nullable: true
+              quoteAsOf:
+                type: string
+                format: date-time
+                nullable: true
+
+    ZakatNisab:
+      type: object
+      required:
+        - disclaimer
+        - methodologyNote
+        - nisabGoldGrams
+        - nisabGoldKarat
+        - gold21GramPriceEgp
+        - nisabEgp
+        - asOf
+        - isStale
+        - rates
+      properties:
+        disclaimer:
+          type: string
+        methodologyNote:
+          type: string
+        nisabGoldGrams:
+          type: number
+        nisabGoldKarat:
+          type: integer
+        gold21GramPriceEgp:
+          type: number
+        nisabEgp:
+          type: number
+        asOf:
+          type: string
+          format: date-time
+        isStale:
+          type: boolean
+        rates:
+          type: object
+          required: [hijri, gregorian]
+          properties:
+            hijri:
+              type: number
+            gregorian:
+              type: number
+
+    ZakatComputeRequest:
+      type: object
+      required: [yearType]
+      properties:
+        yearType:
+          type: string
+          enum: [hijri, gregorian]
+        nisabAttainmentDate:
+          type: string
+          format: date
+        cashEgp:
+          type: number
+          minimum: 0
+        equitiesEgp:
+          type: number
+          minimum: 0
+        equitiesPurpose:
+          type: string
+          enum: [trading, long_term_investment]
+        gold:
+          type: object
+          properties:
+            mode:
+              type: string
+              enum: [egp, grams]
+            amount:
+              type: number
+              minimum: 0
+            karat:
+              type: integer
+              enum: [18, 21, 24]
+            purpose:
+              type: string
+              enum: [investment, personal_jewelry]
+        silver:
+          type: object
+          properties:
+            mode:
+              type: string
+              enum: [egp, grams]
+            amount:
+              type: number
+              minimum: 0
+        bankCertificatesEgp:
+          type: number
+          minimum: 0
+        realEstateEgp:
+          type: number
+          minimum: 0
+        commercialAssetsEgp:
+          type: number
+          minimum: 0
+        receivablesEgp:
+          type: number
+          minimum: 0
+        debtsOwedEgp:
+          type: number
+          minimum: 0
+
+    ZakatComputeResponse:
+      allOf:
+        - $ref: "#/components/schemas/ZakatNisab"
+        - type: object
+          required:
+            - yearType
+            - rate
+            - breakdown
+            - aboveNisab
+            - zakatDueEgp
+            - hawlReminder
+          properties:
+            yearType:
+              type: string
+              enum: [hijri, gregorian]
+            rate:
+              type: number
+            nisabAttainmentDate:
+              type: string
+              format: date
+              nullable: true
+            breakdown:
+              type: object
+            aboveNisab:
+              type: boolean
+            zakatDueEgp:
+              type: number
+            hawlReminder:
+              type: string
+            hawl:
+              type: object
+              nullable: true
+            purposeNotes:
+              type: array
+              items:
+                type: object
+
+    ZakatMethodology:
+      type: object
+      required: [disclaimer, sections]
+      properties:
+        disclaimer:
+          type: string
+        sections:
+          type: array
+          items:
+            type: object
+            required: [id, titleAr, titleEn, bodyAr, bodyEn]
+            properties:
+              id:
+                type: string
+              titleAr:
+                type: string
+              titleEn:
+                type: string
+              bodyAr:
+                type: string
+              bodyEn:
+                type: string
+
+    ZakatSessionSummary:
+      type: object
+      required: [id, yearType, zakatDueEgp, aboveNisab, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+          nullable: true
+        yearType:
+          type: string
+        nisabAttainmentDate:
+          type: string
+          format: date
+          nullable: true
+        zakatDueEgp:
+          type: number
+        aboveNisab:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    ZakatSessionCreate:
+      type: object
+      required: [inputs]
+      properties:
+        label:
+          type: string
+          maxLength: 120
+          nullable: true
+        inputs:
+          $ref: "#/components/schemas/ZakatComputeRequest"
+
+    ZakatSessionCreateResponse:
+      type: object
+      required: [session, result]
+      properties:
+        session:
+          $ref: "#/components/schemas/ZakatSessionSummary"
+        result:
+          $ref: "#/components/schemas/ZakatComputeResponse"
+
+    ZakatSessionDetail:
+      type: object
+      required: [id, inputs, result, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+          nullable: true
+        inputs:
+          type: object
+        result:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    ZakatPrefill:
+      type: object
+      required: [disclaimer, equities, equitiesTotalEgp]
+      properties:
+        disclaimer:
+          type: string
+        equitiesTotalEgp:
+          type: number
+        equities:
+          type: array
+          items:
+            type: object
+            required: [instrumentId, code, displayNameEn, marketValueEgp]
+            properties:
+              instrumentId:
+                type: string
+                format: uuid
+              code:
+                type: string
+              displayNameEn:
+                type: string
+              marketValueEgp:
+                type: number

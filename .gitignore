@@ -1,0 +1,11 @@
+# Sarwa workspace (spec-kit + backend scaffold)
+backend-api/node_modules/
+backend-api/dist/
+backend-api/.env
+admin-dashboard/node_modules/
+admin-dashboard/.next/
+admin-dashboard/dist/
+admin-dashboard/.env
+.DS_Store
+mobile-app/
+node_modules/

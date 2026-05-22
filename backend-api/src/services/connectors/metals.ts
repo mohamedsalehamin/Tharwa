@@ -113,8 +113,8 @@ export async function fetchMetals(
 async function fetchMetalsInner(
   env: Env,
   _egpPerUsd: number | undefined,
-  signal: AbortSignal | undefined,
-  log: FastifyBaseLogger | undefined,
+  _signal: AbortSignal | undefined,
+  _log: FastifyBaseLogger | undefined,
   telegramBundle?: EgyptTelegramBundle | null,
 ): Promise<{ items: MetalItem[]; fetchedAt: Date }> {
   if (env.METALS_MOCK_JSON) {

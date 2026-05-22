@@ -18,8 +18,7 @@ export async function deleteConsumerAccount(
     return { ok: false, code: 'NOT_FOUND' };
   }
   if (!user.passwordHash) {
-    await prisma.consumerUser.delete({ where: { id: consumerUserId } });
-    return { ok: true };
+    return { ok: false, code: 'NO_PASSWORD' };
   }
   if (!password?.length) {
     return { ok: false, code: 'INVALID_PASSWORD' };

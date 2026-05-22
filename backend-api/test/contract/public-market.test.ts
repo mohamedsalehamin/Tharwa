@@ -8,7 +8,24 @@ import { validateOpenApiResponse } from '../helpers/openapi-validator.js';
 
 vi.mock('../../src/lib/prisma.js', () => ({
   prisma: {
-    instrument: { findFirst: vi.fn().mockResolvedValue(null) },
+    instrument: {
+      findMany: vi.fn().mockResolvedValue([
+        {
+          code: 'USD',
+          sortOrder: 10,
+          displayNameEn: 'US Dollar',
+          displayNameAr: 'دولار أمريكي',
+          metadata: { quoteCategory: 'official' },
+        },
+      ]),
+      findFirst: vi.fn().mockImplementation(({ where }: { where?: { code?: string } }) => {
+        const code = where?.code;
+        if (code === 'GOLD_EGP' || code === 'SILVER_EGP') {
+          return Promise.resolve({ isConsumerVisible: true, metadata: null });
+        }
+        return Promise.resolve(null);
+      }),
+    },
     metalKaratRule: { findMany: vi.fn().mockResolvedValue([]) },
     upstreamConnection: { findFirst: vi.fn().mockResolvedValue(null) },
     $queryRaw: vi.fn().mockResolvedValue([{ '?column?': 1 }]),

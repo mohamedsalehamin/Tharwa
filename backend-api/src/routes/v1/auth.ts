@@ -306,6 +306,13 @@ export const v1AuthRoutes: FastifyPluginAsync = async (app) => {
           if (result.code === 'INVALID_PASSWORD') {
             throw new AppError('UNAUTHORIZED', 'Invalid password', 401);
           }
+          if (result.code === 'NO_PASSWORD') {
+            throw new AppError(
+              'VALIDATION',
+              'This account has no password. Sign in with your original method or set a password first.',
+              400,
+            );
+          }
           throw new AppError('NOT_FOUND', 'Account not found', 404);
         }
         return reply.status(204).send();

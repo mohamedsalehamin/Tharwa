@@ -245,8 +245,26 @@ model ConsumerUser {
   priceAlerts         PriceAlert[]
   pushDevices         PushDevice[]
   zakatSessions       ZakatSession[]
+  contactSubmissions  ContactSubmission[]
 
   @@map("consumer_users")
+}
+
+/// In-app "Contact us" form submissions from mobile (guest or signed-in).
+model ContactSubmission {
+  id             String        @id @default(uuid())
+  name           String
+  email          String
+  subject        String?
+  message        String
+  consumerUserId String?       @map("consumer_user_id")
+  consumerUser   ConsumerUser? @relation(fields: [consumerUserId], references: [id], onDelete: SetNull)
+  ip             String?
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  @@index([createdAt(sort: Desc)])
+  @@index([email])
+  @@map("contact_submissions")
 }
 
 /// Saved zakat calculator run (inputs + result snapshot).

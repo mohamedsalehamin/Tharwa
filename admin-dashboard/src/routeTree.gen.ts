@@ -20,6 +20,7 @@ import { Route as authSignInRouteImport } from './routes/(auth)/sign-in'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedPushIndexRouteImport } from './routes/_authenticated/push/index'
 import { Route as AuthenticatedInstrumentsIndexRouteImport } from './routes/_authenticated/instruments/index'
+import { Route as AuthenticatedContactIndexRouteImport } from './routes/_authenticated/contact/index'
 import { Route as AuthenticatedAnnouncementsIndexRouteImport } from './routes/_authenticated/announcements/index'
 import { Route as AuthenticatedActivityIndexRouteImport } from './routes/_authenticated/activity/index'
 import { Route as AuthenticatedSettingsIntegrationsRouteImport } from './routes/_authenticated/settings/integrations'
@@ -79,6 +80,12 @@ const AuthenticatedInstrumentsIndexRoute =
     path: '/instruments/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedContactIndexRoute =
+  AuthenticatedContactIndexRouteImport.update({
+    id: '/contact/',
+    path: '/contact/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAnnouncementsIndexRoute =
   AuthenticatedAnnouncementsIndexRouteImport.update({
     id: '/announcements/',
@@ -109,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/settings/integrations': typeof AuthenticatedSettingsIntegrationsRoute
   '/activity/': typeof AuthenticatedActivityIndexRoute
   '/announcements/': typeof AuthenticatedAnnouncementsIndexRoute
+  '/contact/': typeof AuthenticatedContactIndexRoute
   '/instruments/': typeof AuthenticatedInstrumentsIndexRoute
   '/push/': typeof AuthenticatedPushIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
@@ -124,6 +132,7 @@ export interface FileRoutesByTo {
   '/settings/integrations': typeof AuthenticatedSettingsIntegrationsRoute
   '/activity': typeof AuthenticatedActivityIndexRoute
   '/announcements': typeof AuthenticatedAnnouncementsIndexRoute
+  '/contact': typeof AuthenticatedContactIndexRoute
   '/instruments': typeof AuthenticatedInstrumentsIndexRoute
   '/push': typeof AuthenticatedPushIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
@@ -141,6 +150,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/integrations': typeof AuthenticatedSettingsIntegrationsRoute
   '/_authenticated/activity/': typeof AuthenticatedActivityIndexRoute
   '/_authenticated/announcements/': typeof AuthenticatedAnnouncementsIndexRoute
+  '/_authenticated/contact/': typeof AuthenticatedContactIndexRoute
   '/_authenticated/instruments/': typeof AuthenticatedInstrumentsIndexRoute
   '/_authenticated/push/': typeof AuthenticatedPushIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/settings/integrations'
     | '/activity/'
     | '/announcements/'
+    | '/contact/'
     | '/instruments/'
     | '/push/'
     | '/users/'
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/settings/integrations'
     | '/activity'
     | '/announcements'
+    | '/contact'
     | '/instruments'
     | '/push'
     | '/users'
@@ -189,6 +201,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/integrations'
     | '/_authenticated/activity/'
     | '/_authenticated/announcements/'
+    | '/_authenticated/contact/'
     | '/_authenticated/instruments/'
     | '/_authenticated/push/'
     | '/_authenticated/users/'
@@ -283,6 +296,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInstrumentsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/contact/': {
+      id: '/_authenticated/contact/'
+      path: '/contact'
+      fullPath: '/contact/'
+      preLoaderRoute: typeof AuthenticatedContactIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/announcements/': {
       id: '/_authenticated/announcements/'
       path: '/announcements'
@@ -312,6 +332,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsIntegrationsRoute: typeof AuthenticatedSettingsIntegrationsRoute
   AuthenticatedActivityIndexRoute: typeof AuthenticatedActivityIndexRoute
   AuthenticatedAnnouncementsIndexRoute: typeof AuthenticatedAnnouncementsIndexRoute
+  AuthenticatedContactIndexRoute: typeof AuthenticatedContactIndexRoute
   AuthenticatedInstrumentsIndexRoute: typeof AuthenticatedInstrumentsIndexRoute
   AuthenticatedPushIndexRoute: typeof AuthenticatedPushIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
@@ -323,6 +344,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedSettingsIntegrationsRoute,
   AuthenticatedActivityIndexRoute: AuthenticatedActivityIndexRoute,
   AuthenticatedAnnouncementsIndexRoute: AuthenticatedAnnouncementsIndexRoute,
+  AuthenticatedContactIndexRoute: AuthenticatedContactIndexRoute,
   AuthenticatedInstrumentsIndexRoute: AuthenticatedInstrumentsIndexRoute,
   AuthenticatedPushIndexRoute: AuthenticatedPushIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,

@@ -22,10 +22,12 @@ import { v1SimRoutes } from './routes/v1/sim.js';
 import { v1PriceAlertsRoutes } from './routes/v1/price-alerts.js';
 import { v1PushRoutes } from './routes/v1/push.js';
 import { v1AnnouncementsRoutes } from './routes/v1/announcements.js';
+import { v1ContactRoutes } from './routes/v1/contact.js';
 import { v1ZakatRoutes } from './routes/v1/zakat.js';
 import { adminV1Routes } from './routes/admin/v1.js';
 import { adminSettingsRoutes } from './routes/admin/settings.js';
 import { adminAnnouncementsRoutes } from './routes/admin/announcements.js';
+import { adminContactSubmissionsRoutes } from './routes/admin/contact-submissions.js';
 
 export async function buildApp(env: Env, ctx: AppCtx) {
   // Fastify v5 expects a logger *options* object (or true/false), not a raw Pino instance.
@@ -68,10 +70,12 @@ export async function buildApp(env: Env, ctx: AppCtx) {
   await app.register(v1PriceAlertsRoutes, { prefix: '/v1' });
   await app.register(v1PushRoutes, { prefix: '/v1' });
   await app.register(v1AnnouncementsRoutes, { prefix: '/v1' });
+  await app.register(v1ContactRoutes, { prefix: '/v1' });
   await app.register(v1ZakatRoutes, { prefix: '/v1' });
   await app.register(adminV1Routes, { prefix: '/admin/v1' });
   await app.register(adminSettingsRoutes, { prefix: '/admin/v1' });
   await app.register(adminAnnouncementsRoutes, { prefix: '/admin/v1' });
+  await app.register(adminContactSubmissionsRoutes, { prefix: '/admin/v1' });
 
   return app;
 }

@@ -2,6 +2,7 @@ import {
   Bell,
   Layers,
   LayoutDashboard,
+  Mail,
   Megaphone,
   ScrollText,
   Settings,
@@ -51,6 +52,11 @@ export const sidebarData: SidebarData = {
           title: 'Announcements',
           url: '/announcements',
           icon: Megaphone,
+        },
+        {
+          title: 'Contact',
+          url: '/contact',
+          icon: Mail,
         },
         {
           title: 'Push notifications',

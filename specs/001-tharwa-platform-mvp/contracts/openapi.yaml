@@ -369,6 +369,32 @@ paths:
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
+  /v1/contact:
+    post:
+      tags: [Consumer]
+      summary: Submit a contact-us message
+      description: >
+        Anonymous or signed-in users may submit feedback. Rate-limited per IP.
+        When a valid consumer Bearer token is present, the submission is linked to the account.
+      operationId: submitContact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactSubmissionRequest"
+      responses:
+        "201":
+          description: Submission accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContactSubmissionCreatedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /v1/auth/account:
     delete:
       tags: [Consumer]
@@ -1105,6 +1131,43 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+
+  /admin/v1/contact-submissions:
+    get:
+      tags: [Admin]
+      summary: List contact-us form submissions (paginated)
+      operationId: adminListContactSubmissions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: email
+          in: query
+          description: Case-insensitive substring filter on submitter email
+          schema:
+            type: string
+            maxLength: 254
+      responses:
+        "200":
+          description: Contact submissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminContactSubmissionListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /admin/v1/users:
     get:
@@ -2187,6 +2250,78 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AdminAnnouncement"
+
+    ContactSubmissionRequest:
+      type: object
+      required: [name, email, message]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        subject:
+          type: string
+          maxLength: 200
+        message:
+          type: string
+          minLength: 1
+          maxLength: 5000
+
+    ContactSubmissionCreatedResponse:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+
+    AdminContactSubmission:
+      type: object
+      required: [id, name, email, message, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        subject:
+          type: string
+          nullable: true
+        message:
+          type: string
+        consumerUserId:
+          type: string
+          format: uuid
+          nullable: true
+        consumerEmail:
+          type: string
+          format: email
+          nullable: true
+        ip:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminContactSubmissionListResponse:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminContactSubmission"
+        total:
+          type: integer
+          minimum: 0
 
     AdminAnnouncementUpsert:
       type: object

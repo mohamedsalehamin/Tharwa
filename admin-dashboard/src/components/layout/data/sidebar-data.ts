@@ -1,5 +1,7 @@
 import {
   Bell,
+  FileText,
+  Globe,
   Layers,
   LayoutDashboard,
   Mail,
@@ -57,6 +59,16 @@ export const sidebarData: SidebarData = {
           title: 'Contact',
           url: '/contact',
           icon: Mail,
+        },
+        {
+          title: 'Website pages',
+          url: '/website/pages',
+          icon: FileText,
+        },
+        {
+          title: 'Website navigation',
+          url: '/website/navigation',
+          icon: Globe,
         },
         {
           title: 'Push notifications',

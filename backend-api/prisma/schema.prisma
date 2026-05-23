@@ -80,6 +80,21 @@ enum CorporateCalendarDividendSubKind {
   unspecified
 }
 
+enum SitePageKind {
+  standard
+  contact
+}
+
+enum SiteMenuPlacement {
+  header
+  footer
+}
+
+enum SiteMenuLinkType {
+  page
+  external
+}
+
 model Instrument {
   id                String          @id @default(uuid())
   kind              InstrumentKind
@@ -479,4 +494,41 @@ model PriceAlert {
   @@index([consumerUserId, isEnabled])
   @@index([instrumentId, isEnabled])
   @@map("price_alerts")
+}
+
+/// Public marketing site CMS pages (privacy, about, contact intro, etc.).
+model SitePage {
+  id          String       @id @default(uuid())
+  slug        String       @unique
+  titleAr     String       @map("title_ar")
+  titleEn     String       @map("title_en")
+  contentAr   String       @map("content_ar") @db.Text
+  contentEn   String       @map("content_en") @db.Text
+  kind        SitePageKind @default(standard)
+  isPublished Boolean      @default(false) @map("is_published")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  menuItems SiteMenuItem[]
+
+  @@map("site_pages")
+}
+
+/// Header/footer navigation items for the public website.
+model SiteMenuItem {
+  id          String            @id @default(uuid())
+  placement   SiteMenuPlacement
+  labelAr     String            @map("label_ar")
+  labelEn     String            @map("label_en")
+  linkType    SiteMenuLinkType  @map("link_type")
+  pageId      String?           @map("page_id")
+  page        SitePage?         @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  externalUrl String?           @map("external_url")
+  sortOrder   Int               @default(0) @map("sort_order")
+  isEnabled   Boolean           @default(true) @map("is_enabled")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@index([placement, sortOrder])
+  @@map("site_menu_items")
 }

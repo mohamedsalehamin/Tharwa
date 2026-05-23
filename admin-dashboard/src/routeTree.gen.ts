@@ -24,6 +24,8 @@ import { Route as AuthenticatedContactIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedAnnouncementsIndexRouteImport } from './routes/_authenticated/announcements/index'
 import { Route as AuthenticatedActivityIndexRouteImport } from './routes/_authenticated/activity/index'
 import { Route as AuthenticatedSettingsIntegrationsRouteImport } from './routes/_authenticated/settings/integrations'
+import { Route as AuthenticatedWebsitePagesIndexRouteImport } from './routes/_authenticated/website/pages/index'
+import { Route as AuthenticatedWebsiteNavigationIndexRouteImport } from './routes/_authenticated/website/navigation/index'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -104,6 +106,18 @@ const AuthenticatedSettingsIntegrationsRoute =
     path: '/settings/integrations',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedWebsitePagesIndexRoute =
+  AuthenticatedWebsitePagesIndexRouteImport.update({
+    id: '/website/pages/',
+    path: '/website/pages/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedWebsiteNavigationIndexRoute =
+  AuthenticatedWebsiteNavigationIndexRouteImport.update({
+    id: '/website/navigation/',
+    path: '/website/navigation/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -120,6 +134,8 @@ export interface FileRoutesByFullPath {
   '/instruments/': typeof AuthenticatedInstrumentsIndexRoute
   '/push/': typeof AuthenticatedPushIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
+  '/website/navigation/': typeof AuthenticatedWebsiteNavigationIndexRoute
+  '/website/pages/': typeof AuthenticatedWebsitePagesIndexRoute
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof authSignInRoute
@@ -136,6 +152,8 @@ export interface FileRoutesByTo {
   '/instruments': typeof AuthenticatedInstrumentsIndexRoute
   '/push': typeof AuthenticatedPushIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
+  '/website/navigation': typeof AuthenticatedWebsiteNavigationIndexRoute
+  '/website/pages': typeof AuthenticatedWebsitePagesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -154,6 +172,8 @@ export interface FileRoutesById {
   '/_authenticated/instruments/': typeof AuthenticatedInstrumentsIndexRoute
   '/_authenticated/push/': typeof AuthenticatedPushIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
+  '/_authenticated/website/navigation/': typeof AuthenticatedWebsiteNavigationIndexRoute
+  '/_authenticated/website/pages/': typeof AuthenticatedWebsitePagesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -172,6 +192,8 @@ export interface FileRouteTypes {
     | '/instruments/'
     | '/push/'
     | '/users/'
+    | '/website/navigation/'
+    | '/website/pages/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/sign-in'
@@ -188,6 +210,8 @@ export interface FileRouteTypes {
     | '/instruments'
     | '/push'
     | '/users'
+    | '/website/navigation'
+    | '/website/pages'
   id:
     | '__root__'
     | '/_authenticated'
@@ -205,6 +229,8 @@ export interface FileRouteTypes {
     | '/_authenticated/instruments/'
     | '/_authenticated/push/'
     | '/_authenticated/users/'
+    | '/_authenticated/website/navigation/'
+    | '/_authenticated/website/pages/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -324,6 +350,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsIntegrationsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/website/pages/': {
+      id: '/_authenticated/website/pages/'
+      path: '/website/pages'
+      fullPath: '/website/pages/'
+      preLoaderRoute: typeof AuthenticatedWebsitePagesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/website/navigation/': {
+      id: '/_authenticated/website/navigation/'
+      path: '/website/navigation'
+      fullPath: '/website/navigation/'
+      preLoaderRoute: typeof AuthenticatedWebsiteNavigationIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -336,6 +376,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInstrumentsIndexRoute: typeof AuthenticatedInstrumentsIndexRoute
   AuthenticatedPushIndexRoute: typeof AuthenticatedPushIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
+  AuthenticatedWebsiteNavigationIndexRoute: typeof AuthenticatedWebsiteNavigationIndexRoute
+  AuthenticatedWebsitePagesIndexRoute: typeof AuthenticatedWebsitePagesIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -348,6 +390,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInstrumentsIndexRoute: AuthenticatedInstrumentsIndexRoute,
   AuthenticatedPushIndexRoute: AuthenticatedPushIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
+  AuthenticatedWebsiteNavigationIndexRoute:
+    AuthenticatedWebsiteNavigationIndexRoute,
+  AuthenticatedWebsitePagesIndexRoute: AuthenticatedWebsitePagesIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

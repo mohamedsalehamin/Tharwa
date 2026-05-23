@@ -1,0 +1,32 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', 'Noto Sans Arabic', system-ui, sans-serif;
+  --color-brand: #0f766e;
+  --color-brand-dark: #115e59;
+  --color-surface: #f8fafc;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-svh bg-white font-sans text-ink antialiased;
+  }
+
+  a {
+    @apply text-brand hover:text-brand-dark;
+  }
+}
+
+.prose-page {
+  @apply max-w-none leading-relaxed text-slate-700;
+}
+
+.prose-page p {
+  @apply mb-4 whitespace-pre-wrap;
+}

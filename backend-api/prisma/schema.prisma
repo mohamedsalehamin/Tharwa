@@ -66,6 +66,20 @@ enum AnnouncementVariant {
   maintenance
 }
 
+enum CorporateCalendarEventKind {
+  dividend
+  agm
+  egm
+  general
+  other
+}
+
+enum CorporateCalendarDividendSubKind {
+  entitlement
+  payment
+  unspecified
+}
+
 model Instrument {
   id                String          @id @default(uuid())
   kind              InstrumentKind
@@ -86,8 +100,53 @@ model Instrument {
   metalKaratRules MetalKaratRule[]
   ohlcvBars       OhlcvBar[]
   priceAlerts     PriceAlert[]
+  calendarEvents  CorporateCalendarEvent[]
 
   @@map("instruments")
+}
+
+/// EGX corporate calendar (Mubasher AMR — synced daily).
+model CorporateCalendarEvent {
+  id              String                          @id @default(uuid())
+  source          String                          @default("mubasher")
+  sourceKey       String                          @map("source_key")
+  symbol          String
+  instrumentId    String?                         @map("instrument_id")
+  instrument      Instrument?                     @relation(fields: [instrumentId], references: [id], onDelete: SetNull)
+  eventDate       DateTime                        @map("event_date") @db.Date
+  eventDateEnd    DateTime?                       @map("event_date_end") @db.Date
+  kind            CorporateCalendarEventKind
+  dividendSubKind CorporateCalendarDividendSubKind? @map("dividend_sub_kind")
+  titleAr         String                          @map("title_ar")
+  titleEn         String                          @map("title_en")
+  agendaAr        String?                         @map("agenda_ar")
+  agendaEn        String?                         @map("agenda_en")
+  hostNameAr      String?                         @map("host_name_ar")
+  hostNameEn      String?                         @map("host_name_en")
+  placeAr         String?                         @map("place_ar")
+  placeEn         String?                         @map("place_en")
+  eventTime       String?                         @map("event_time")
+  raw             Json?
+  syncedAt        DateTime                        @map("synced_at")
+  createdAt       DateTime                        @default(now()) @map("created_at")
+  updatedAt       DateTime                        @updatedAt @map("updated_at")
+
+  @@unique([source, sourceKey])
+  @@index([eventDate])
+  @@index([symbol, eventDate])
+  @@map("corporate_calendar_events")
+}
+
+model CorporateCalendarSyncRun {
+  id             String   @id @default(uuid())
+  success        Boolean
+  eventsUpserted Int      @default(0) @map("events_upserted")
+  errorMessage   String?  @map("error_message")
+  attemptCount   Int      @default(1) @map("attempt_count")
+  finishedAt     DateTime @default(now()) @map("finished_at")
+
+  @@index([finishedAt(sort: Desc)])
+  @@map("corporate_calendar_sync_runs")
 }
 
 /// Gold karat pricing derived from a 24k gram anchor (replaces untyped `metadata` karat math).

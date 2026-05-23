@@ -7,6 +7,11 @@ import {
   listMarketEgxStocksCached,
 } from '../../services/curated-equities.js';
 import { enrichEquityDetailWithScanner } from '../../services/equity-profile-enrichment.js';
+import {
+  defaultCalendarRange,
+  listCorporateCalendarForSymbol,
+  parseCalendarDateParam,
+} from '../../services/corporate-calendar.js';
 import { AppError, sendError } from '../../lib/errors.js';
 
 const historyRangeSchema = z.enum(['1d', '1w', '1m', '1y']);
@@ -55,6 +60,36 @@ export const v1StocksCuratedRoutes: FastifyPluginAsync = async (app) => {
         symbol: bundle.symbol,
         resolution: bundle.resolution,
         points: bundle.points,
+      });
+    } catch (e) {
+      if (!reply.sent) sendError(reply, e);
+      return;
+    }
+  });
+
+  app.get('/stocks/:symbol/calendar', async (req, reply) => {
+    try {
+      const { symbol } = req.params as { symbol: string };
+      const defaults = defaultCalendarRange();
+      const from = parseCalendarDateParam(
+        (req.query as { from?: string }).from,
+        defaults.from,
+      );
+      const to = parseCalendarDateParam((req.query as { to?: string }).to, defaults.to);
+      const limitRaw = (req.query as { limit?: string }).limit;
+      const limit = limitRaw ? Math.min(20, Math.max(1, Number.parseInt(limitRaw, 10) || 5)) : 5;
+
+      const row = await getCuratedEquityDetail(app.ctx.env, app.ctx.redis, app.log, symbol);
+      if (!row) {
+        throw new AppError('NOT_FOUND', 'Unknown symbol', 404);
+      }
+
+      const { events, fetchedAt } = await listCorporateCalendarForSymbol(symbol, from, to, limit);
+      return reply.send({
+        disclaimer: DISCLAIMER_COMBINED,
+        symbol: row.symbol,
+        fetchedAt,
+        events,
       });
     } catch (e) {
       if (!reply.sent) sendError(reply, e);

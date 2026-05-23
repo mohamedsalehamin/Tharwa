@@ -12,6 +12,7 @@ import { healthRoutes } from './routes/health.js';
 import { metricsRoutes } from './routes/metrics.js';
 import { openapiDocRoutes } from './routes/v1/openapi-doc.js';
 import { v1MarketRoutes } from './routes/v1/market.js';
+import { v1CalendarRoutes } from './routes/v1/calendar.js';
 import { v1StocksDiscoveryRoutes } from './routes/v1/stocks-discovery.js';
 import { v1StocksCuratedRoutes } from './routes/v1/stocks-curated.js';
 import { v1AuthRoutes } from './routes/v1/auth.js';
@@ -60,6 +61,7 @@ export async function buildApp(env: Env, ctx: AppCtx) {
   await app.register(healthRoutes);
   await app.register(openapiDocRoutes, { prefix: '/v1' });
   await app.register(v1MarketRoutes, { prefix: '/v1' });
+  await app.register(v1CalendarRoutes, { prefix: '/v1' });
   await app.register(v1StocksDiscoveryRoutes, { prefix: '/v1' });
   await app.register(v1StocksCuratedRoutes, { prefix: '/v1' });
   await app.register(v1AuthRoutes, { prefix: '/v1' });

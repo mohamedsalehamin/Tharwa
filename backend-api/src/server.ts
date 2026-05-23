@@ -5,6 +5,10 @@ import { getRedis, closeRedis } from './lib/redis.js';
 import { prisma } from './lib/prisma.js';
 import { flushSentry, initObservability } from './observability/index.js';
 import { startUpstreamPoller, stopUpstreamPoller } from './jobs/poll-upstreams.js';
+import {
+  startCorporateCalendarSync,
+  stopCorporateCalendarSync,
+} from './jobs/sync-corporate-calendar.js';
 
 async function main() {
   const env = loadEnv();
@@ -18,8 +22,10 @@ async function main() {
   await app.listen({ port: env.PORT, host: '0.0.0.0' });
 
   startUpstreamPoller({ env, redis }, log);
+  startCorporateCalendarSync({ env, redis }, log);
 
   const shutdown = async () => {
+    stopCorporateCalendarSync();
     stopUpstreamPoller();
     await app.close();
     await closeRedis();

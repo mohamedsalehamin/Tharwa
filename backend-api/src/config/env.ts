@@ -101,6 +101,16 @@ const envSchema = z.object({
   UPSTREAM_POLL_EGX_OFFHOURS_SEC: z.coerce.number().int().min(60).max(3600).default(300),
   /** Leader lock TTL — must exceed slow upstream ticks. */
   UPSTREAM_POLL_LEADER_TTL_SEC: z.coerce.number().int().min(30).max(600).default(120),
+  /** Mubasher AMR corporate calendar — daily sync (leader-elected). */
+  CORPORATE_CALENDAR_SYNC_ENABLED: z
+    .string()
+    .optional()
+    .default('true')
+    .transform((s) => s.toLowerCase() !== 'false' && s !== '0'),
+  /** How often to check whether today’s sync still needs to run. */
+  CORPORATE_CALENDAR_SYNC_CHECK_INTERVAL_SEC: z.coerce.number().int().min(300).max(86_400).default(3600),
+  CORPORATE_CALENDAR_SYNC_MAX_RETRIES: z.coerce.number().int().min(1).max(10).default(3),
+  CORPORATE_CALENDAR_SYNC_LEADER_TTL_SEC: z.coerce.number().int().min(60).max(3600).default(600),
   SERVICE_NAME: z.string().min(1).default('tharwa-backend-api'),
   BUILD_SHA: z.string().min(1).default('dev'),
   SENTRY_DSN: z.string().url().optional(),

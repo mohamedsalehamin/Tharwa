@@ -135,16 +135,16 @@ const envSchema = z.object({
         .map((id) => id.trim())
         .filter(Boolean),
     ),
-  /** Apple Sign In client IDs (bundle id / service id), comma-separated. Defaults to `com.tharwa`. */
+  /** Apple Sign In client IDs (bundle id / service id), comma-separated. Defaults to `com.tharwaapp`. */
   APPLE_SIGN_IN_CLIENT_IDS: z
     .string()
     .optional()
     .transform((s) => {
-      const ids = (s ?? 'com.tharwa')
+      const ids = (s ?? 'com.tharwaapp')
         .split(',')
         .map((id) => id.trim())
         .filter(Boolean);
-      return ids.length > 0 ? ids : ['com.tharwa'];
+      return ids.length > 0 ? ids : ['com.tharwaapp'];
     }),
 });
 

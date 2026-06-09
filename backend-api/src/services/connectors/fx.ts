@@ -24,25 +24,77 @@ export type FxRateItem = QuoteMeta & {
   flagUrl?: string;
 };
 
-const BASES = ['USD', 'EUR', 'GBP', 'SAR', 'AED'] as const;
+const BASES = ['USD', 'EUR', 'GBP', 'SAR', 'AED', 'JPY', 'CHF', 'CNY'] as const;
 
 type FxBase = (typeof BASES)[number];
 
 /**
- * ICE `FX_IDC` uses compact pair ids (e.g. `EUREGP`), not `EUR_EGP`. `SAREGP` / direct `AEDEGP`
- * are not listed — SAR and AED are derived from USD/EGP ÷ USD/SAR and USD/EGP ÷ USD/AED.
+ * ICE `FX_IDC` uses compact pair ids (e.g. `EUREGP`), not `EUR_EGP`. Pairs without a direct
+ * `*EGP` listing are derived from USD/EGP ÷ USD/{base} (see `TV_CROSS_USD_QUOTE`).
  * Override any base with `FX_TV_SYMBOLS` JSON, e.g. `{"AED":"SAXO:USDAED"}`.
  */
-const TV_DEFAULT_DIRECT: Record<'USD' | 'EUR' | 'GBP', string> = {
+const TV_DEFAULT_DIRECT: Partial<Record<FxBase, string>> = {
   USD: 'FX_IDC:USDEGP',
   EUR: 'FX_IDC:EUREGP',
   GBP: 'FX_IDC:GBPEGP',
+  CHF: 'FX_IDC:CHFEGP',
 };
 
-const TV_CROSS_USD_QUOTE: Record<'SAR' | 'AED', string> = {
+const TV_CROSS_USD_QUOTE: Partial<Record<FxBase, string>> = {
   SAR: 'FX_IDC:USDSAR',
   AED: 'FX_IDC:USDAED',
+  JPY: 'FX_IDC:USDJPY',
+  CNY: 'FX_IDC:USDCNY',
 };
+
+function tvSymbolsToFetch(ov: Partial<Record<FxBase, string>>): string[] {
+  const symbols = new Set<string>();
+  for (const base of BASES) {
+    if (ov[base]) {
+      symbols.add(ov[base]!);
+      continue;
+    }
+    const direct = TV_DEFAULT_DIRECT[base];
+    if (direct) {
+      symbols.add(direct);
+      continue;
+    }
+    const cross = TV_CROSS_USD_QUOTE[base];
+    if (cross) symbols.add(cross);
+  }
+  return [...symbols];
+}
+
+function rateFromTradingView(
+  base: FxBase,
+  prices: Map<string, number>,
+  ov: Partial<Record<FxBase, string>>,
+  usdEgp: number,
+): number {
+  if (base === 'USD') return usdEgp;
+
+  if (ov[base]) {
+    const p = prices.get(ov[base]!);
+    if (p == null || p <= 0) throw new Error(`TradingView missing ${ov[base]}`);
+    return p;
+  }
+
+  const direct = TV_DEFAULT_DIRECT[base];
+  if (direct) {
+    const p = prices.get(direct);
+    if (p == null || p <= 0) throw new Error(`TradingView missing ${direct}`);
+    return p;
+  }
+
+  const cross = TV_CROSS_USD_QUOTE[base];
+  if (cross) {
+    const perUsd = prices.get(cross);
+    if (perUsd == null || perUsd <= 0) throw new Error(`TradingView missing ${cross}`);
+    return usdEgp / perUsd;
+  }
+
+  throw new Error(`No TradingView symbol config for ${base}`);
+}
 
 function round4(n: number): number {
   return Math.round(n * 10000) / 10000;
@@ -169,52 +221,12 @@ async function fetchFxTradingView(env: Env, signal?: AbortSignal): Promise<{ ite
   const ov = parseTvOverrides(env);
   const fetchedAt = new Date();
 
-  const usdEgpId = ov.USD ?? TV_DEFAULT_DIRECT.USD;
-  const eurId = ov.EUR ?? TV_DEFAULT_DIRECT.EUR;
-  const gbpId = ov.GBP ?? TV_DEFAULT_DIRECT.GBP;
-
-  const toFetch: string[] = [usdEgpId, eurId, gbpId];
-  if (ov.SAR) toFetch.push(ov.SAR);
-  else toFetch.push(TV_CROSS_USD_QUOTE.SAR);
-  if (ov.AED) toFetch.push(ov.AED);
-  else toFetch.push(TV_CROSS_USD_QUOTE.AED);
+  const usdEgpId = ov.USD ?? TV_DEFAULT_DIRECT.USD!;
 
   try {
-    const prices = await fetchTradingViewPrices(quoteSession, toFetch, signal);
+    const prices = await fetchTradingViewPrices(quoteSession, tvSymbolsToFetch(ov), signal);
     const usdEgp = prices.get(usdEgpId);
     if (usdEgp == null || usdEgp <= 0) throw new Error('TradingView missing USD/EGP');
-
-    const rateFor = (base: FxBase): number => {
-      if (base === 'USD') return usdEgp;
-      if (base === 'EUR') {
-        const p = prices.get(eurId);
-        if (p == null || p <= 0) throw new Error(`TradingView missing ${eurId}`);
-        return p;
-      }
-      if (base === 'GBP') {
-        const p = prices.get(gbpId);
-        if (p == null || p <= 0) throw new Error(`TradingView missing ${gbpId}`);
-        return p;
-      }
-      if (base === 'SAR') {
-        if (ov.SAR) {
-          const p = prices.get(ov.SAR);
-          if (p == null || p <= 0) throw new Error(`TradingView missing ${ov.SAR}`);
-          return p;
-        }
-        const sarPerUsd = prices.get(TV_CROSS_USD_QUOTE.SAR);
-        if (sarPerUsd == null || sarPerUsd <= 0) throw new Error('TradingView missing FX_IDC:USDSAR');
-        return usdEgp / sarPerUsd;
-      }
-      if (ov.AED) {
-        const p = prices.get(ov.AED);
-        if (p == null || p <= 0) throw new Error(`TradingView missing ${ov.AED}`);
-        return p;
-      }
-      const aedPerUsd = prices.get(TV_CROSS_USD_QUOTE.AED);
-      if (aedPerUsd == null || aedPerUsd <= 0) throw new Error('TradingView missing FX_IDC:USDAED');
-      return usdEgp / aedPerUsd;
-    };
 
     const items: FxRateItem[] = BASES.map((base) => ({
       asOf: fetchedAt.toISOString(),
@@ -223,7 +235,7 @@ async function fetchFxTradingView(env: Env, signal?: AbortSignal): Promise<{ ite
       isStale: false,
       baseCurrency: base,
       quoteCurrency: 'EGP' as const,
-      rate: round4(rateFor(base)),
+      rate: round4(rateFromTradingView(base, prices, ov, usdEgp)),
       changePct: null,
     }));
 

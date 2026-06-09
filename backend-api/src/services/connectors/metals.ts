@@ -61,15 +61,16 @@ export function isBuiltInMetalsPlaceholder(items: MetalItem[]): boolean {
   return g24.amountEgp === METALS_PLACEHOLDER_GOLD_24_PER_GRAM && g21.amountEgp === expected21;
 }
 
-async function egyptTelegramParsedToMetalItems(
+/** Build API metal rows from a parsed Egyptian Telegram price post. */
+export async function metalItemsFromEgyptParsed(
   env: Env,
   parsed: EgyptParsedPrices,
-  fetchedAt: Date,
-  silverFallbackEgp: number,
+  asOf: Date,
+  silverFallbackEgp = 42,
 ): Promise<MetalItem[]> {
   const k21 = parsed.karat_21!;
   const k24 = parsed.karat_24 ?? (k21 * 24) / 21;
-  const asOfSource = parsed.timestamp ? new Date(parsed.timestamp) : fetchedAt;
+  const asOfSource = parsed.timestamp ? new Date(parsed.timestamp) : asOf;
   const anchor24 = round4(k24);
   let gold = await buildGoldRowsForEnv(env, anchor24, asOfSource, false);
   gold = applyTelegramGramPriceOverrides(gold, parsed);
@@ -80,11 +81,11 @@ async function egyptTelegramParsedToMetalItems(
       gold[ozIdx] = { ...gold[ozIdx]!, amountEgp: round4(ozOverride) };
     }
   }
-  const asOf = asOfSource.toISOString();
+  const asOfIso = asOfSource.toISOString();
 
   const silverGram = parsed.silver_local;
   const silver: MetalItem = {
-    asOf,
+    asOf: asOfIso,
     quoteCategory: silverGram != null ? 'indicative' : 'estimate',
     sessionState: 'unknown',
     isStale: false,
@@ -142,7 +143,7 @@ async function fetchMetalsInner(
 
   if (telegramBundle?.parsed.karat_21 != null) {
     return {
-      items: await egyptTelegramParsedToMetalItems(
+      items: await metalItemsFromEgyptParsed(
         env,
         telegramBundle.parsed,
         new Date(telegramBundle.fetchedAt),

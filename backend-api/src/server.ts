@@ -4,6 +4,7 @@ import { createLogger } from './lib/logger.js';
 import { getRedis, closeRedis } from './lib/redis.js';
 import { prisma } from './lib/prisma.js';
 import { flushSentry, initObservability } from './observability/index.js';
+import { startMetalSnapshotIngest, stopMetalSnapshotIngest } from './jobs/ingest-metal-snapshots.js';
 import { startUpstreamPoller, stopUpstreamPoller } from './jobs/poll-upstreams.js';
 import {
   startCorporateCalendarSync,
@@ -22,10 +23,12 @@ async function main() {
   await app.listen({ port: env.PORT, host: '0.0.0.0' });
 
   startUpstreamPoller({ env, redis }, log);
+  startMetalSnapshotIngest({ env, redis }, log);
   startCorporateCalendarSync({ env, redis }, log);
 
   const shutdown = async () => {
     stopCorporateCalendarSync();
+    stopMetalSnapshotIngest();
     stopUpstreamPoller();
     await app.close();
     await closeRedis();

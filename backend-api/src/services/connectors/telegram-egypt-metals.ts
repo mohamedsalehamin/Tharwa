@@ -257,7 +257,13 @@ function mergeOverlayParsed(...parts: (EgyptParsedPrices | null | undefined)[]):
   return merged;
 }
 
-function publicUsernameFromChannelId(channelId: string): string | null {
+export type TmeChannelMessage = {
+  messageId: number;
+  text: string;
+  postedAt: Date;
+};
+
+export function publicUsernameFromChannelId(channelId: string): string | null {
   const s = channelId.trim().replace(/^@/, '');
   if (!s) return null;
   if (s.startsWith('-') || /^-?\d+$/.test(s)) return null;
@@ -315,21 +321,111 @@ function extractTmeWidgetTexts(html: string): string[] {
   return results.slice().reverse();
 }
 
-async function fetchTmeChannelPreview(
+function parseMessageIdFromDataPost(dataPost: string): number | null {
+  const m = /\/(\d+)$/.exec(dataPost.trim());
+  if (!m?.[1]) return null;
+  const id = Number.parseInt(m[1], 10);
+  return Number.isFinite(id) ? id : null;
+}
+
+function extractMessageTextFromChunk(chunk: string): string | null {
+  const needle = 'tgme_widget_message_text';
+  const idx = chunk.indexOf(needle);
+  if (idx === -1) return null;
+  const afterClass = chunk.indexOf('>', idx);
+  if (afterClass === -1) return null;
+  const contentStart = afterClass + 1;
+  let scan = contentStart;
+  let depth = 1;
+  while (scan < chunk.length && depth > 0) {
+    const openIdx = chunk.indexOf('<div', scan);
+    const closeIdx = chunk.indexOf('</div>', scan);
+    if (closeIdx === -1) break;
+    if (openIdx !== -1 && openIdx < closeIdx) {
+      depth += 1;
+      scan = openIdx + 4;
+    } else {
+      depth -= 1;
+      if (depth === 0) {
+        return stripTagsToText(chunk.slice(contentStart, closeIdx));
+      }
+      scan = closeIdx + 6;
+    }
+  }
+  return null;
+}
+
+/** Parse public t.me/s preview HTML into channel posts (message id + text + post time). */
+export function extractTmeWidgetMessages(html: string): TmeChannelMessage[] {
+  if (!html.includes('tgme_widget_message_wrap')) return [];
+
+  const messages: TmeChannelMessage[] = [];
+  for (const chunk of html.split('tgme_widget_message_wrap')) {
+    const postMatch = /data-post="([^"]+)"/.exec(chunk);
+    if (!postMatch?.[1]) continue;
+    const messageId = parseMessageIdFromDataPost(postMatch[1]);
+    if (messageId == null) continue;
+
+    const timeMatch = /<time[^>]*datetime="([^"]+)"/i.exec(chunk);
+    if (!timeMatch?.[1]) continue;
+    const postedAt = new Date(timeMatch[1]);
+    if (Number.isNaN(postedAt.getTime())) continue;
+
+    const text = extractMessageTextFromChunk(chunk);
+    if (!text) continue;
+
+    messages.push({ messageId, text, postedAt });
+  }
+
+  messages.sort((a, b) => a.messageId - b.messageId);
+  return messages;
+}
+
+async function fetchTmeChannelHtml(
   username: string,
+  beforeMessageId?: number,
   signal?: AbortSignal,
-): Promise<{ texts: string[]; hasPublicPostFeed: boolean }> {
+): Promise<{ html: string; hasPublicPostFeed: boolean }> {
   const handle = username.replace(/^@/, '');
-  if (!handle) return { texts: [], hasPublicPostFeed: false };
-  const url = `https://t.me/s/${handle}`;
-  const res = await fetch(url, {
+  if (!handle) return { html: '', hasPublicPostFeed: false };
+
+  const url = new URL(`https://t.me/s/${handle}`);
+  if (beforeMessageId != null) {
+    url.searchParams.set('before', String(beforeMessageId));
+  }
+
+  const res = await fetch(url.toString(), {
     signal,
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TharwaMetals/1.0)' },
     redirect: 'follow',
   });
-  if (!res.ok) return { texts: [], hasPublicPostFeed: false };
+  if (!res.ok) return { html: '', hasPublicPostFeed: false };
   const html = await res.text();
   const hasPublicPostFeed = html.includes('tgme_widget_message');
+  return { html, hasPublicPostFeed };
+}
+
+/** One page of public channel history (~20 posts). Use `beforeMessageId` to paginate older posts. */
+export async function fetchTmeChannelHistoryPage(
+  username: string,
+  opts?: { beforeMessageId?: number; signal?: AbortSignal },
+): Promise<{ messages: TmeChannelMessage[]; hasPublicPostFeed: boolean }> {
+  const { html, hasPublicPostFeed } = await fetchTmeChannelHtml(
+    username,
+    opts?.beforeMessageId,
+    opts?.signal,
+  );
+  if (!hasPublicPostFeed) {
+    return { messages: [], hasPublicPostFeed: false };
+  }
+  return { messages: extractTmeWidgetMessages(html), hasPublicPostFeed: true };
+}
+
+async function fetchTmeChannelPreview(
+  username: string,
+  signal?: AbortSignal,
+): Promise<{ texts: string[]; hasPublicPostFeed: boolean }> {
+  const { html, hasPublicPostFeed } = await fetchTmeChannelHtml(username, undefined, signal);
   if (!hasPublicPostFeed) {
     return { texts: [], hasPublicPostFeed: false };
   }

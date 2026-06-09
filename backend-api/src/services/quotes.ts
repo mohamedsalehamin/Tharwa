@@ -6,6 +6,10 @@ import { fetchFxRates, type FxRateItem } from './connectors/fx.js';
 import { fetchMetals, isBuiltInMetalsPlaceholder, type MetalItem } from './connectors/metals.js';
 import { getEgyptTelegramBundleCached } from './egypt-telegram-bundle.js';
 import { applyFxPresentation, applyMetalsPresentation } from './instrument-presentation.js';
+import {
+  getLatestMetalQuotesFromDb,
+  persistMetalQuoteSnapshots,
+} from './metal-quote-snapshots.js';
 
 const TTL_SEC = 120;
 /** When Telegram is configured but the connector still returns built-in placeholders, avoid long Redis lock-in. */
@@ -75,8 +79,25 @@ export async function getMetalsCached(
     waitMs: env.REDIS_CACHE_WAIT_MS,
     log,
     fetch: async () => {
+      const fromDb = await getLatestMetalQuotesFromDb();
+      if (fromDb) {
+        return { fetchedAt: fromDb.bundleFetchedAt, data: { items: fromDb.items } };
+      }
+
       const tgBundle = await getEgyptTelegramBundleCached(env, redis, log);
       const { items, fetchedAt: at } = await fetchMetals(env, undefined, undefined, log, tgBundle);
+
+      if (
+        env.METALS_SNAPSHOT_ENABLED &&
+        !isBuiltInMetalsPlaceholder(items)
+      ) {
+        const source = env.METALS_MOCK_JSON ? 'mock' : 'telegram';
+        await persistMetalQuoteSnapshots(items, {
+          source,
+          dedupMinIntervalSec: env.METALS_SNAPSHOT_INTERVAL_SEC,
+        }).catch((e) => log.warn({ err: e }, 'metals: snapshot persist failed'));
+      }
+
       return { fetchedAt: at.toISOString(), data: { items } };
     },
     resolveRedisTtlSec: (envelope) => {

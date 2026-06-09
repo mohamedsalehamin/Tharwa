@@ -62,6 +62,16 @@ const envSchema = z.object({
   CONSUMER_EMAIL_VERIFY_URL: z.string().min(8).default('tharwa://verify-email'),
   /** `Instrument.code` for gold karat rules (default `GOLD_EGP`). */
   METALS_GOLD_INSTRUMENT_CODE: z.string().min(1).default('GOLD_EGP'),
+  /** Persist Telegram metal quotes to `quote_snapshots` on a fixed cadence. */
+  METALS_SNAPSHOT_ENABLED: z
+    .string()
+    .optional()
+    .default('true')
+    .transform((s) => s.toLowerCase() !== 'false' && s !== '0'),
+  /** How often the leader ingests metal quotes into Postgres (seconds). */
+  METALS_SNAPSHOT_INTERVAL_SEC: z.coerce.number().int().min(60).max(3600).default(300),
+  /** Leader lock TTL for metal snapshot ingest ticks. */
+  METALS_SNAPSHOT_LEADER_TTL_SEC: z.coerce.number().int().min(30).max(600).default(120),
   /** When true, upsert equity chart bars into `ohlcv_bars` after upstream fetch. */
   OHLCV_PERSIST_ENABLED: z
     .string()

@@ -10,6 +10,7 @@ const registerBody = z.object({
   token: z.string().min(20).max(4096),
   platform: z.enum(['ios', 'android']),
   installId: z.string().min(8).max(128).optional(),
+  locale: z.enum(['ar', 'en']).optional(),
 });
 
 const unregisterBody = z.object({
@@ -35,6 +36,7 @@ export const v1PushRoutes: FastifyPluginAsync = async (app) => {
         platform: parsed.data.platform as PushPlatform,
         installId: parsed.data.installId ?? null,
         consumerUserId: req.consumer?.id ?? null,
+        locale: parsed.data.locale ?? null,
       });
       return reply.status(204).send();
     } catch (e) {

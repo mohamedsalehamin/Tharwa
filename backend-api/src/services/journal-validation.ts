@@ -2,8 +2,10 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { AppError } from '../lib/errors.js';
 import { equityInstrumentRefObject } from './equity-instrument-ref.js';
+import { metalJournalRefObject } from './metal-instrument-ref.js';
 
 export const journalCreateBody = equityInstrumentRefObject
+  .merge(metalJournalRefObject.partial())
   .extend({
     side: z.enum(['buy', 'sell']),
     quantity: z.coerce.number().positive(),
@@ -12,12 +14,42 @@ export const journalCreateBody = equityInstrumentRefObject
     note: z.string().max(2000).optional().nullable(),
   })
   .superRefine((b, ctx) => {
-    if (!b.instrumentId && !b.symbol) {
+    const hasEquityRef = Boolean(b.instrumentId || b.symbol);
+    const hasMetalRef = Boolean(b.metal && b.unit);
+
+    if (!hasEquityRef && !hasMetalRef) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'instrumentId or symbol is required',
+        message: 'instrumentId, symbol, or metal+unit is required',
         path: ['instrumentId'],
       });
+      return;
+    }
+
+    if (hasEquityRef && hasMetalRef) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Provide either equity fields or metal fields, not both',
+        path: ['metal'],
+      });
+      return;
+    }
+
+    if (hasMetalRef) {
+      if (b.metal === 'gold' && b.unit === 'gram' && b.karat == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Gold gram entries require karat (18, 21, or 24)',
+          path: ['karat'],
+        });
+      }
+      if (b.metal === 'silver' && b.unit !== 'gram') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Silver is tracked per gram only',
+          path: ['unit'],
+        });
+      }
     }
   });
 

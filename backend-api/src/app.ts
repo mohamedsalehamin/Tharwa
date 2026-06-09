@@ -22,6 +22,7 @@ import { v1PortfolioRoutes } from './routes/v1/portfolio.js';
 import { v1SimRoutes } from './routes/v1/sim.js';
 import { v1PriceAlertsRoutes } from './routes/v1/price-alerts.js';
 import { v1PushRoutes } from './routes/v1/push.js';
+import { v1NotificationsRoutes } from './routes/v1/notifications.js';
 import { v1AnnouncementsRoutes } from './routes/v1/announcements.js';
 import { v1ContactRoutes } from './routes/v1/contact.js';
 import { v1ZakatRoutes } from './routes/v1/zakat.js';
@@ -73,6 +74,7 @@ export async function buildApp(env: Env, ctx: AppCtx) {
   await app.register(v1SimRoutes, { prefix: '/v1' });
   await app.register(v1PriceAlertsRoutes, { prefix: '/v1' });
   await app.register(v1PushRoutes, { prefix: '/v1' });
+  await app.register(v1NotificationsRoutes, { prefix: '/v1' });
   await app.register(v1AnnouncementsRoutes, { prefix: '/v1' });
   await app.register(v1ContactRoutes, { prefix: '/v1' });
   await app.register(v1SiteRoutes, { prefix: '/v1' });

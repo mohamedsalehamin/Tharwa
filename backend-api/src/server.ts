@@ -10,6 +10,7 @@ import {
   startCorporateCalendarSync,
   stopCorporateCalendarSync,
 } from './jobs/sync-corporate-calendar.js';
+import { startDailyBriefs, stopDailyBriefs } from './jobs/send-daily-briefs.js';
 
 async function main() {
   const env = loadEnv();
@@ -25,8 +26,10 @@ async function main() {
   startUpstreamPoller({ env, redis }, log);
   startMetalSnapshotIngest({ env, redis }, log);
   startCorporateCalendarSync({ env, redis }, log);
+  startDailyBriefs({ env, redis }, log);
 
   const shutdown = async () => {
+    stopDailyBriefs();
     stopCorporateCalendarSync();
     stopMetalSnapshotIngest();
     stopUpstreamPoller();

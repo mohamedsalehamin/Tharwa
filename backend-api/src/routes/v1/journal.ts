@@ -4,7 +4,7 @@ import type { AppCtx } from '../../app-context.js';
 import { AppError, sendError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { consumerBearerPreHandler } from '../../plugins/consumer-bearer.js';
-import { resolveEquityInstrumentId } from '../../services/equity-instrument-ref.js';
+import { resolveJournalInstrumentId } from '../../services/metal-instrument-ref.js';
 import {
   assertJournalSellAllowed,
   journalCreateBody,
@@ -52,7 +52,7 @@ export const v1JournalRoutes: FastifyPluginAsync = async (app) => {
         throw new AppError('VALIDATION', zodJournalMessage(parsed.error), 400);
       }
       const b = parsed.data;
-      const instrumentId = await resolveEquityInstrumentId(b);
+      const instrumentId = await resolveJournalInstrumentId(b);
       if (!instrumentId) {
         throw new AppError('NOT_FOUND', 'Instrument not found', 404);
       }

@@ -320,6 +320,7 @@ model ConsumerUser {
   pushDevices         PushDevice[]
   zakatSessions       ZakatSession[]
   contactSubmissions  ContactSubmission[]
+  notifications       ConsumerNotification[]
 
   @@map("consumer_users")
 }
@@ -368,6 +369,8 @@ model PushDevice {
   consumerUser   ConsumerUser? @relation(fields: [consumerUserId], references: [id], onDelete: SetNull)
   /// Client-stable id to re-link the same install when the FCM token rotates.
   installId      String?       @map("install_id")
+  /// App UI locale (`ar` | `en`) for localized push copy.
+  locale         String?       @map("locale")
   lastSeenAt     DateTime      @map("last_seen_at")
   disabledAt     DateTime?     @map("disabled_at")
   createdAt      DateTime      @default(now()) @map("created_at")
@@ -377,6 +380,23 @@ model PushDevice {
   @@index([platform, disabledAt])
   @@index([installId])
   @@map("push_devices")
+}
+
+/// In-app notification history (daily briefs and other push types).
+model ConsumerNotification {
+  id             String        @id @default(uuid())
+  consumerUserId String?       @map("consumer_user_id")
+  consumerUser   ConsumerUser? @relation(fields: [consumerUserId], references: [id], onDelete: Cascade)
+  installId      String?       @map("install_id")
+  type           String
+  locale         String
+  title          String
+  body           String
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  @@index([installId, locale, createdAt(sort: Desc)])
+  @@index([consumerUserId, locale, createdAt(sort: Desc)])
+  @@map("consumer_notifications")
 }
 
 model ConsumerRefreshToken {

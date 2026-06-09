@@ -5,8 +5,10 @@ import type { Env } from '../config/env.js';
 import { AppError } from '../lib/errors.js';
 import { prisma } from '../lib/prisma.js';
 import { DISCLAIMER_COMBINED } from '../i18n/disclaimers.js';
-import { quoteForTvId } from './curated-equities.js';
-import { resolveTradingViewSymbol } from './connectors/equities.js';
+import type { MetalItem } from './connectors/metals.js';
+import { isMetalQuoteInstrumentCode } from './metal-instrument-ref.js';
+import { quotePortfolioLastPrice } from './portfolio-quotes.js';
+import { getMetalsCached } from './quotes.js';
 
 export type PortfolioPosition = {
   instrumentId: string;
@@ -74,6 +76,20 @@ export async function buildPortfolioSummary(
   }
 
   const positions: PortfolioPosition[] = [];
+  let metalsItems: MetalItem[] | undefined;
+  const hasMetalPositions = quoteCtx
+    ? [...byInstrument.values()].some(
+        (cell) => Math.abs(cell.qty) > 1e-12 && isMetalQuoteInstrumentCode(cell.code),
+      )
+    : false;
+  if (quoteCtx && hasMetalPositions) {
+    try {
+      metalsItems = (await getMetalsCached(quoteCtx.env, quoteCtx.redis, quoteCtx.log)).items;
+    } catch {
+      metalsItems = undefined;
+    }
+  }
+
   for (const [instrumentId, cell] of byInstrument) {
     if (Math.abs(cell.qty) < 1e-12 && cell.cost < 1e-9) continue;
     const avg = cell.qty > 1e-12 ? cell.cost / cell.qty : null;
@@ -87,8 +103,7 @@ export async function buildPortfolioSummary(
 
     if (quoteCtx && cell.qty > 1e-12) {
       try {
-        const tvId = resolveTradingViewSymbol(cell.code, cell.metadata);
-        const q = await quoteForTvId(quoteCtx.env, quoteCtx.redis, quoteCtx.log, tvId);
+        const q = await quotePortfolioLastPrice(cell, quoteCtx, metalsItems);
         lastPrice = q.last;
         quoteAsOf = q.asOf;
         if (lastPrice != null && Number.isFinite(lastPrice)) {

@@ -121,6 +121,19 @@ const envSchema = z.object({
   CORPORATE_CALENDAR_SYNC_CHECK_INTERVAL_SEC: z.coerce.number().int().min(300).max(86_400).default(3600),
   CORPORATE_CALENDAR_SYNC_MAX_RETRIES: z.coerce.number().int().min(1).max(10).default(3),
   CORPORATE_CALENDAR_SYNC_LEADER_TTL_SEC: z.coerce.number().int().min(60).max(3600).default(600),
+  /** Daily market + watchlist push briefs (leader-elected, Cairo timezone). */
+  DAILY_BRIEF_ENABLED: z
+    .string()
+    .optional()
+    .default('true')
+    .transform((s) => s.toLowerCase() !== 'false' && s !== '0'),
+  /** How often to check whether today's briefs still need to run. */
+  DAILY_BRIEF_CHECK_INTERVAL_SEC: z.coerce.number().int().min(30).max(3600).default(60),
+  /** Cairo local hour (24h) to send daily briefs. */
+  DAILY_BRIEF_HOUR: z.coerce.number().int().min(0).max(23).default(15),
+  /** Cairo local minute to send daily briefs. */
+  DAILY_BRIEF_MINUTE: z.coerce.number().int().min(0).max(59).default(15),
+  DAILY_BRIEF_LEADER_TTL_SEC: z.coerce.number().int().min(30).max(600).default(120),
   SERVICE_NAME: z.string().min(1).default('tharwa-backend-api'),
   BUILD_SHA: z.string().min(1).default('dev'),
   SENTRY_DSN: z.string().url().optional(),

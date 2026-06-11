@@ -134,6 +134,17 @@ const envSchema = z.object({
   /** Cairo local minute to send daily briefs. */
   DAILY_BRIEF_MINUTE: z.coerce.number().int().min(0).max(59).default(15),
   DAILY_BRIEF_LEADER_TTL_SEC: z.coerce.number().int().min(30).max(600).default(120),
+  /** Monthly net worth snapshot capture job (feature 002). */
+  NETWORTH_SNAPSHOT_ENABLED: z
+    .string()
+    .optional()
+    .default('true')
+    .transform((s) => s.toLowerCase() !== 'false' && s !== '0'),
+  /** How often to check whether this month's snapshots still need capturing. */
+  NETWORTH_SNAPSHOT_CHECK_INTERVAL_SEC: z.coerce.number().int().min(60).max(86_400).default(3600),
+  NETWORTH_SNAPSHOT_LEADER_TTL_SEC: z.coerce.number().int().min(30).max(600).default(120),
+  /** Max consumers processed per snapshot tick (protects DB/quotes under load). */
+  NETWORTH_SNAPSHOT_BATCH_SIZE: z.coerce.number().int().min(1).max(5000).default(500),
   SERVICE_NAME: z.string().min(1).default('tharwa-backend-api'),
   BUILD_SHA: z.string().min(1).default('dev'),
   SENTRY_DSN: z.string().url().optional(),

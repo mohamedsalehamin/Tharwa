@@ -1418,12 +1418,353 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  # --- Wealth Planning Core (feature 002) ---
+  /v1/networth:
+    get:
+      tags: [Consumer]
+      summary: Unified net worth (derived holdings + manual components − liabilities), EGP
+      operationId: getNetWorth
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Net worth total + category breakdown with freshness metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetWorthSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/networth/components:
+    get:
+      tags: [Consumer]
+      summary: List the user's manual assets/liabilities
+      operationId: listNetWorthComponents
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Manual components
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ManualComponent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Consumer]
+      summary: Create a manual asset or liability
+      operationId: createNetWorthComponent
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ManualComponentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManualComponent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/networth/components/{id}:
+    put:
+      tags: [Consumer]
+      summary: Update a manual component
+      operationId: updateNetWorthComponent
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ComponentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ManualComponentInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManualComponent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Consumer]
+      summary: Delete a manual component
+      operationId: deleteNetWorthComponent
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ComponentId"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/networth/snapshots:
+    get:
+      tags: [Consumer]
+      summary: Monthly net worth history (most recent first)
+      operationId: listNetWorthSnapshots
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 120
+            default: 24
+      responses:
+        "200":
+          description: Snapshot series
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/NetWorthSnapshot"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Consumer]
+      summary: Capture a snapshot for the current month (idempotent per month)
+      operationId: captureNetWorthSnapshot
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Snapshot captured or updated for the current month
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetWorthSnapshot"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/networth/real-return:
+    get:
+      tags: [Consumer]
+      summary: Real-return lens — net worth change vs inflation, USD, and gold
+      operationId: getRealReturn
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 120
+            default: 12
+      responses:
+        "200":
+          description: Real-return comparison for the selected period
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RealReturnResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/goals:
+    get:
+      tags: [Consumer]
+      summary: List financial goals with progress and required saving
+      operationId: listGoals
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Goals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, disclaimer]
+                properties:
+                  disclaimer:
+                    type: string
+                  totalRequiredMonthlyEgp:
+                    type: number
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Goal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Consumer]
+      summary: Create a financial goal
+      operationId: createGoal
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/goals/{id}:
+    put:
+      tags: [Consumer]
+      summary: Update a financial goal
+      operationId: updateGoal
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GoalId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Consumer]
+      summary: Delete a financial goal
+      operationId: deleteGoal
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GoalId"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/v1/inflation-benchmarks:
+    get:
+      tags: [Admin]
+      summary: List inflation benchmark series
+      operationId: adminListInflationBenchmarks
+      security:
+        - AdminAuth: []
+      responses:
+        "200":
+          description: Inflation benchmark rows (most recent first)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InflationBenchmark"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      tags: [Admin]
+      summary: Upsert an inflation benchmark for a month (audited)
+      operationId: adminUpsertInflationBenchmark
+      security:
+        - AdminAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InflationBenchmarkInput"
+      responses:
+        "200":
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InflationBenchmark"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
 components:
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    AdminAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ComponentId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    GoalId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
 
   responses:
     NotFound:
@@ -2820,3 +3161,274 @@ components:
                 type: string
               marketValueEgp:
                 type: number
+
+    # --- Wealth Planning Core (feature 002) ---
+    Freshness:
+      type: object
+      description: Market-data freshness for a value derived from quotes.
+      properties:
+        asOf:
+          type: string
+          format: date-time
+          nullable: true
+        isStale:
+          type: boolean
+
+    ManualComponentInput:
+      type: object
+      required: [kind, category, amount]
+      properties:
+        kind:
+          type: string
+          enum: [asset, liability]
+        category:
+          type: string
+          enum: [cash, certificate, real_estate, other_asset, loan, other_liability]
+        label:
+          type: string
+          nullable: true
+        amount:
+          type: number
+          exclusiveMinimum: 0
+        currency:
+          type: string
+          default: EGP
+        note:
+          type: string
+          nullable: true
+
+    ManualComponent:
+      allOf:
+        - $ref: "#/components/schemas/ManualComponentInput"
+        - type: object
+          required: [id, amountEgp]
+          properties:
+            id:
+              type: string
+              format: uuid
+            amountEgp:
+              type: number
+              description: Amount converted to EGP for the total.
+            fxAsOf:
+              type: string
+              format: date-time
+              nullable: true
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    NetWorthCategorySubtotal:
+      type: object
+      required: [category, kind, totalEgp]
+      properties:
+        category:
+          type: string
+          enum: [equities, gold, cash, certificate, real_estate, other_asset, loan, other_liability]
+        kind:
+          type: string
+          enum: [asset, liability]
+        totalEgp:
+          type: number
+
+    NetWorthSummary:
+      type: object
+      required: [totalEgp, assetsEgp, liabilitiesEgp, breakdown, disclaimer]
+      properties:
+        totalEgp:
+          type: number
+          description: Net worth (assets − liabilities); may be negative.
+        assetsEgp:
+          type: number
+        liabilitiesEgp:
+          type: number
+        breakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/NetWorthCategorySubtotal"
+        freshness:
+          $ref: "#/components/schemas/Freshness"
+        disclaimer:
+          type: string
+
+    NetWorthSnapshot:
+      type: object
+      required: [periodMonth, totalEgp]
+      properties:
+        periodMonth:
+          type: string
+          format: date
+        capturedAt:
+          type: string
+          format: date-time
+        totalEgp:
+          type: number
+        changeFromPrevPct:
+          type: number
+          nullable: true
+        usdEgpRate:
+          type: number
+          nullable: true
+        goldGramEgp:
+          type: number
+          nullable: true
+        inflationIndex:
+          type: number
+          nullable: true
+
+    Benchmark:
+      type: object
+      required: [key, outcome]
+      properties:
+        key:
+          type: string
+          enum: [inflation, usd, gold]
+        benchmarkChangePct:
+          type: number
+          nullable: true
+        realDeltaPct:
+          type: number
+          nullable: true
+          description: Net worth %Δ minus benchmark %Δ (positive = ahead).
+        outcome:
+          type: string
+          enum: [ahead, behind, flat, unavailable]
+
+    RealReturnResult:
+      type: object
+      required: [periodStart, periodEnd, hasSufficientData, disclaimer]
+      properties:
+        periodStart:
+          type: string
+          format: date
+          nullable: true
+        periodEnd:
+          type: string
+          format: date
+          nullable: true
+        nominalChangePct:
+          type: number
+          nullable: true
+        benchmarks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Benchmark"
+        hasSufficientData:
+          type: boolean
+          description: false when fewer than two snapshots exist in the period.
+        disclaimer:
+          type: string
+
+    GoalInput:
+      type: object
+      required: [label, targetAmountEgp, targetDate]
+      properties:
+        label:
+          type: string
+        targetAmountEgp:
+          type: number
+          exclusiveMinimum: 0
+        targetDate:
+          type: string
+          format: date
+        savedSource:
+          type: string
+          enum: [manual, net_worth, category]
+          default: manual
+        manualSavedEgp:
+          type: number
+          minimum: 0
+          nullable: true
+        savedCategory:
+          type: string
+          enum: [cash, certificate, real_estate, other_asset, loan, other_liability]
+          nullable: true
+        illustrativeAnnualRatePct:
+          type: number
+          nullable: true
+          description: Optional. Drives an explicitly-labeled illustrative scenario only.
+
+    IllustrativeScenario:
+      type: object
+      description: Illustrative only — not a prediction, expected value, or guarantee.
+      required: [annualRatePct, projectedValueEgp, label]
+      properties:
+        annualRatePct:
+          type: number
+        projectedValueEgp:
+          type: number
+        label:
+          type: string
+          description: e.g. "Illustrative scenario — not a guarantee".
+
+    Goal:
+      allOf:
+        - $ref: "#/components/schemas/GoalInput"
+        - type: object
+          required: [id, status, currentSavedEgp, progressPct, monthsRemaining, requiredMonthlyEgp, onTrack]
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              type: string
+              enum: [active, achieved, past_due]
+            currentSavedEgp:
+              type: number
+            progressPct:
+              type: number
+              description: 0..100 (capped at 100 when achieved).
+            monthsRemaining:
+              type: integer
+            requiredMonthlyEgp:
+              type: number
+              description: No-assumed-return required monthly saving.
+            onTrack:
+              type: boolean
+            illustrativeScenario:
+              $ref: "#/components/schemas/IllustrativeScenario"
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    InflationBenchmarkInput:
+      type: object
+      required: [periodMonth, sourceLabel]
+      properties:
+        periodMonth:
+          type: string
+          format: date
+          description: First day of the month.
+        indexValue:
+          type: number
+          nullable: true
+        yoyRatePct:
+          type: number
+          nullable: true
+        sourceLabel:
+          type: string
+        asOf:
+          type: string
+          format: date-time
+          nullable: true
+
+    InflationBenchmark:
+      allOf:
+        - $ref: "#/components/schemas/InflationBenchmarkInput"
+        - type: object
+          required: [id]
+          properties:
+            id:
+              type: string
+              format: uuid
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time

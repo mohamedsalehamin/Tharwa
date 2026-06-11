@@ -95,18 +95,44 @@ enum SiteMenuLinkType {
   external
 }
 
+enum NetWorthComponentKind {
+  asset
+  liability
+}
+
+enum NetWorthCategory {
+  cash
+  certificate
+  real_estate
+  other_asset
+  loan
+  other_liability
+}
+
+enum FinancialGoalStatus {
+  active
+  achieved
+  past_due
+}
+
+enum GoalSavedSource {
+  manual
+  net_worth
+  category
+}
+
 model Instrument {
-  id                String          @id @default(uuid())
+  id                String         @id @default(uuid())
   kind              InstrumentKind
-  code              String          @unique
-  displayNameAr     String          @map("display_name_ar")
-  displayNameEn     String          @map("display_name_en")
-  isConsumerVisible Boolean         @default(true) @map("is_consumer_visible")
-  sortOrder         Int             @default(0) @map("sort_order")
+  code              String         @unique
+  displayNameAr     String         @map("display_name_ar")
+  displayNameEn     String         @map("display_name_en")
+  isConsumerVisible Boolean        @default(true) @map("is_consumer_visible")
+  sortOrder         Int            @default(0) @map("sort_order")
   /// Equity: `{ "tvSymbol": "EGX:COMI" }`. Prefer typed relations for metals (see `metalKaratRules`).
   metadata          Json?
-  createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @updatedAt @map("updated_at")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
 
   quoteSnapshots  QuoteSnapshot[]
   watchlistItems  WatchlistItem[]
@@ -122,29 +148,29 @@ model Instrument {
 
 /// EGX corporate calendar (Mubasher AMR — synced daily).
 model CorporateCalendarEvent {
-  id              String                          @id @default(uuid())
-  source          String                          @default("mubasher")
-  sourceKey       String                          @map("source_key")
+  id              String                            @id @default(uuid())
+  source          String                            @default("mubasher")
+  sourceKey       String                            @map("source_key")
   symbol          String
-  instrumentId    String?                         @map("instrument_id")
-  instrument      Instrument?                     @relation(fields: [instrumentId], references: [id], onDelete: SetNull)
-  eventDate       DateTime                        @map("event_date") @db.Date
-  eventDateEnd    DateTime?                       @map("event_date_end") @db.Date
+  instrumentId    String?                           @map("instrument_id")
+  instrument      Instrument?                       @relation(fields: [instrumentId], references: [id], onDelete: SetNull)
+  eventDate       DateTime                          @map("event_date") @db.Date
+  eventDateEnd    DateTime?                         @map("event_date_end") @db.Date
   kind            CorporateCalendarEventKind
   dividendSubKind CorporateCalendarDividendSubKind? @map("dividend_sub_kind")
-  titleAr         String                          @map("title_ar")
-  titleEn         String                          @map("title_en")
-  agendaAr        String?                         @map("agenda_ar")
-  agendaEn        String?                         @map("agenda_en")
-  hostNameAr      String?                         @map("host_name_ar")
-  hostNameEn      String?                         @map("host_name_en")
-  placeAr         String?                         @map("place_ar")
-  placeEn         String?                         @map("place_en")
-  eventTime       String?                         @map("event_time")
+  titleAr         String                            @map("title_ar")
+  titleEn         String                            @map("title_en")
+  agendaAr        String?                           @map("agenda_ar")
+  agendaEn        String?                           @map("agenda_en")
+  hostNameAr      String?                           @map("host_name_ar")
+  hostNameEn      String?                           @map("host_name_en")
+  placeAr         String?                           @map("place_ar")
+  placeEn         String?                           @map("place_en")
+  eventTime       String?                           @map("event_time")
   raw             Json?
-  syncedAt        DateTime                        @map("synced_at")
-  createdAt       DateTime                        @default(now()) @map("created_at")
-  updatedAt       DateTime                        @updatedAt @map("updated_at")
+  syncedAt        DateTime                          @map("synced_at")
+  createdAt       DateTime                          @default(now()) @map("created_at")
+  updatedAt       DateTime                          @updatedAt @map("updated_at")
 
   @@unique([source, sourceKey])
   @@index([eventDate])
@@ -237,13 +263,13 @@ model UpstreamConnection {
 }
 
 model AdminUser {
-  id           String          @id @default(uuid())
-  email        String          @unique
-  passwordHash String          @map("password_hash")
-  totpSecret   String?         @map("totp_secret")
-  totpEnabled  Boolean         @default(false) @map("totp_enabled")
-  role         String          @default("operator")
-  createdAt    DateTime        @default(now()) @map("created_at")
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  totpSecret   String?  @map("totp_secret")
+  totpEnabled  Boolean  @default(false) @map("totp_enabled")
+  role         String   @default("operator")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   auditLogs            AdminAuditLog[]
   platformIntegrations PlatformIntegration[]
@@ -277,13 +303,13 @@ model ConsumerAnnouncement {
 
 /// Admin-managed third-party credentials (FCM, etc.). Secrets are never returned on read APIs.
 model PlatformIntegration {
-  slug              String     @id
-  displayName       String     @map("display_name")
-  config            Json
-  updatedByAdminId  String?    @map("updated_by_admin_id")
-  updatedByAdmin    AdminUser? @relation(fields: [updatedByAdminId], references: [id], onDelete: SetNull)
-  createdAt         DateTime   @default(now()) @map("created_at")
-  updatedAt         DateTime   @updatedAt @map("updated_at")
+  slug             String     @id
+  displayName      String     @map("display_name")
+  config           Json
+  updatedByAdminId String?    @map("updated_by_admin_id")
+  updatedByAdmin   AdminUser? @relation(fields: [updatedByAdminId], references: [id], onDelete: SetNull)
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
 
   @@map("platform_integrations")
 }
@@ -321,6 +347,9 @@ model ConsumerUser {
   zakatSessions       ZakatSession[]
   contactSubmissions  ContactSubmission[]
   notifications       ConsumerNotification[]
+  netWorthComponents  ManualNetWorthComponent[]
+  netWorthSnapshots   NetWorthSnapshot[]
+  financialGoals      FinancialGoal[]
 
   @@map("consumer_users")
 }
@@ -482,17 +511,17 @@ model SimAccount {
 }
 
 model SimTrade {
-  id           String       @id @default(uuid())
-  simAccountId String       @map("sim_account_id")
-  simAccount   SimAccount   @relation(fields: [simAccountId], references: [id], onDelete: Cascade)
-  instrumentId String       @map("instrument_id")
-  instrument   Instrument   @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+  id           String      @id @default(uuid())
+  simAccountId String      @map("sim_account_id")
+  simAccount   SimAccount  @relation(fields: [simAccountId], references: [id], onDelete: Cascade)
+  instrumentId String      @map("instrument_id")
+  instrument   Instrument  @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
   side         JournalSide
-  quantity     Decimal      @db.Decimal(24, 8)
-  fillPriceEgp Decimal      @map("fill_price_egp") @db.Decimal(24, 8)
-  quoteAsOf    DateTime?    @map("quote_as_of")
-  filledAt     DateTime     @default(now()) @map("filled_at")
-  createdAt    DateTime     @default(now()) @map("created_at")
+  quantity     Decimal     @db.Decimal(24, 8)
+  fillPriceEgp Decimal     @map("fill_price_egp") @db.Decimal(24, 8)
+  quoteAsOf    DateTime?   @map("quote_as_of")
+  filledAt     DateTime    @default(now()) @map("filled_at")
+  createdAt    DateTime    @default(now()) @map("created_at")
 
   @@index([simAccountId, filledAt(sort: Desc)])
   @@map("sim_trades")
@@ -551,4 +580,77 @@ model SiteMenuItem {
 
   @@index([placement, sortOrder])
   @@map("site_menu_items")
+}
+
+/// User-authored asset or liability not otherwise tracked (cash, certificates, real estate, loans).
+/// Self-reported (legal posture identical to TradeJournalEntry).
+model ManualNetWorthComponent {
+  id             String                @id @default(uuid())
+  consumerUserId String                @map("consumer_user_id")
+  consumerUser   ConsumerUser          @relation(fields: [consumerUserId], references: [id], onDelete: Cascade)
+  kind           NetWorthComponentKind
+  category       NetWorthCategory
+  label          String?
+  amount         Decimal               @db.Decimal(24, 4)
+  currency       String                @default("EGP")
+  note           String?
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  @@index([consumerUserId, kind])
+  @@map("manual_net_worth_components")
+}
+
+/// Point-in-time net worth with benchmark anchors for real-return math. One row per consumer per month.
+model NetWorthSnapshot {
+  id             String       @id @default(uuid())
+  consumerUserId String       @map("consumer_user_id")
+  consumerUser   ConsumerUser @relation(fields: [consumerUserId], references: [id], onDelete: Cascade)
+  periodMonth    DateTime     @map("period_month") @db.Date
+  capturedAt     DateTime     @default(now()) @map("captured_at")
+  totalEgp       Decimal      @map("total_egp") @db.Decimal(24, 4)
+  breakdown      Json
+  usdEgpRate     Decimal?     @map("usd_egp_rate") @db.Decimal(18, 6)
+  goldGramEgp    Decimal?     @map("gold_gram_egp") @db.Decimal(18, 6)
+  inflationIndex Decimal?     @map("inflation_index") @db.Decimal(18, 6)
+  dataFreshness  Json?        @map("data_freshness")
+
+  @@unique([consumerUserId, periodMonth])
+  @@index([consumerUserId, periodMonth(sort: Desc)])
+  @@map("net_worth_snapshots")
+}
+
+/// User-defined wealth target. Informational planning only (no guaranteed returns).
+model FinancialGoal {
+  id                        String              @id @default(uuid())
+  consumerUserId            String              @map("consumer_user_id")
+  consumerUser              ConsumerUser        @relation(fields: [consumerUserId], references: [id], onDelete: Cascade)
+  label                     String
+  targetAmountEgp           Decimal             @map("target_amount_egp") @db.Decimal(24, 4)
+  targetDate                DateTime            @map("target_date") @db.Date
+  savedSource               GoalSavedSource     @default(manual) @map("saved_source")
+  manualSavedEgp            Decimal?            @map("manual_saved_egp") @db.Decimal(24, 4)
+  savedCategory             NetWorthCategory?   @map("saved_category")
+  illustrativeAnnualRatePct Decimal?            @map("illustrative_annual_rate_pct") @db.Decimal(6, 3)
+  status                    FinancialGoalStatus @default(active)
+  createdAt                 DateTime            @default(now()) @map("created_at")
+  updatedAt                 DateTime            @updatedAt @map("updated_at")
+
+  @@index([consumerUserId, status])
+  @@map("financial_goals")
+}
+
+/// Administratively managed EGP inflation reference (backend-served; clients never call externally).
+model InflationBenchmark {
+  id          String    @id @default(uuid())
+  periodMonth DateTime  @unique @map("period_month") @db.Date
+  indexValue  Decimal?  @map("index_value") @db.Decimal(18, 6)
+  yoyRatePct  Decimal?  @map("yoy_rate_pct") @db.Decimal(8, 4)
+  sourceLabel String    @map("source_label")
+  asOf        DateTime? @map("as_of")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([periodMonth(sort: Desc)])
+  @@map("inflation_benchmarks")
 }

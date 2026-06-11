@@ -11,6 +11,10 @@ import {
   stopCorporateCalendarSync,
 } from './jobs/sync-corporate-calendar.js';
 import { startDailyBriefs, stopDailyBriefs } from './jobs/send-daily-briefs.js';
+import {
+  startNetWorthSnapshots,
+  stopNetWorthSnapshots,
+} from './jobs/capture-networth-snapshots.js';
 
 async function main() {
   const env = loadEnv();
@@ -27,8 +31,10 @@ async function main() {
   startMetalSnapshotIngest({ env, redis }, log);
   startCorporateCalendarSync({ env, redis }, log);
   startDailyBriefs({ env, redis }, log);
+  startNetWorthSnapshots({ env, redis }, log);
 
   const shutdown = async () => {
+    stopNetWorthSnapshots();
     stopDailyBriefs();
     stopCorporateCalendarSync();
     stopMetalSnapshotIngest();

@@ -19,6 +19,8 @@ import { v1AuthRoutes } from './routes/v1/auth.js';
 import { v1WatchlistRoutes } from './routes/v1/watchlist.js';
 import { v1JournalRoutes } from './routes/v1/journal.js';
 import { v1PortfolioRoutes } from './routes/v1/portfolio.js';
+import { v1NetWorthRoutes } from './routes/v1/net-worth.js';
+import { v1GoalsRoutes } from './routes/v1/goals.js';
 import { v1SimRoutes } from './routes/v1/sim.js';
 import { v1PriceAlertsRoutes } from './routes/v1/price-alerts.js';
 import { v1PushRoutes } from './routes/v1/push.js';
@@ -31,6 +33,7 @@ import { adminSettingsRoutes } from './routes/admin/settings.js';
 import { adminAnnouncementsRoutes } from './routes/admin/announcements.js';
 import { adminContactSubmissionsRoutes } from './routes/admin/contact-submissions.js';
 import { adminSiteRoutes } from './routes/admin/site.js';
+import { adminInflationBenchmarkRoutes } from './routes/admin/inflation-benchmark.js';
 import { v1SiteRoutes } from './routes/v1/site.js';
 
 export async function buildApp(env: Env, ctx: AppCtx) {
@@ -71,6 +74,8 @@ export async function buildApp(env: Env, ctx: AppCtx) {
   await app.register(v1WatchlistRoutes, { prefix: '/v1' });
   await app.register(v1JournalRoutes, { prefix: '/v1' });
   await app.register(v1PortfolioRoutes, { prefix: '/v1' });
+  await app.register(v1NetWorthRoutes, { prefix: '/v1' });
+  await app.register(v1GoalsRoutes, { prefix: '/v1' });
   await app.register(v1SimRoutes, { prefix: '/v1' });
   await app.register(v1PriceAlertsRoutes, { prefix: '/v1' });
   await app.register(v1PushRoutes, { prefix: '/v1' });
@@ -84,6 +89,7 @@ export async function buildApp(env: Env, ctx: AppCtx) {
   await app.register(adminAnnouncementsRoutes, { prefix: '/admin/v1' });
   await app.register(adminContactSubmissionsRoutes, { prefix: '/admin/v1' });
   await app.register(adminSiteRoutes, { prefix: '/admin/v1' });
+  await app.register(adminInflationBenchmarkRoutes, { prefix: '/admin/v1' });
 
   return app;
 }

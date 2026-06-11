@@ -6,13 +6,15 @@ alwaysApply: true
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the implementation plan at:
 
-**Plan:** `specs/001-tharwa-platform-mvp/plan.md`
+**Plan:** `specs/002-wealth-planning-core/plan.md`
 
 Supporting artifacts for the active feature:
 
-- **Spec:** `specs/001-tharwa-platform-mvp/spec.md`
-- **Research / decisions:** `specs/001-tharwa-platform-mvp/research.md`
-- **Data model:** `specs/001-tharwa-platform-mvp/data-model.md`
-- **API contract (OpenAPI):** `specs/001-tharwa-platform-mvp/contracts/openapi.yaml`
-- **Backend quickstart:** `specs/001-tharwa-platform-mvp/quickstart.md`
+- **Spec:** `specs/002-wealth-planning-core/spec.md`
+- **Research / decisions:** `specs/002-wealth-planning-core/research.md`
+- **Data model:** `specs/002-wealth-planning-core/data-model.md`
+- **API contract (OpenAPI fragment):** `specs/002-wealth-planning-core/contracts/openapi.wealth.yaml`
+- **Quickstart:** `specs/002-wealth-planning-core/quickstart.md`
+
+Baseline platform context (prior feature): `specs/001-tharwa-platform-mvp/plan.md`
 <!-- SPECKIT END -->

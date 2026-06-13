@@ -161,6 +161,8 @@ export type PushAudienceStats = {
 export type ConsumerUserRow = {
   id: string
   email: string
+  name: string | null
+  phone: string | null
   emailVerifiedAt: string | null
   hasPassword: boolean
   hasAuthSubject: boolean

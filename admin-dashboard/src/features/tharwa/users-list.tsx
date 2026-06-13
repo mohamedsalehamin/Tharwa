@@ -130,6 +130,8 @@ export function UsersList() {
             <TableHeader>
               <TableRow>
                 <TableHead>Email</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Phone</TableHead>
                 <TableHead>Verified</TableHead>
                 <TableHead>Auth</TableHead>
                 <TableHead>Created</TableHead>
@@ -139,13 +141,13 @@ export function UsersList() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className='text-muted-foreground'>
+                  <TableCell colSpan={7} className='text-muted-foreground'>
                     Loading…
                   </TableCell>
                 </TableRow>
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className='text-muted-foreground'>
+                  <TableCell colSpan={7} className='text-muted-foreground'>
                     No users found.
                   </TableCell>
                 </TableRow>
@@ -153,6 +155,10 @@ export function UsersList() {
                 items.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className='font-medium'>{u.email}</TableCell>
+                    <TableCell>{u.name ?? '—'}</TableCell>
+                    <TableCell dir='ltr' className='text-sm'>
+                      {u.phone ?? '—'}
+                    </TableCell>
                     <TableCell>
                       {u.emailVerifiedAt ? (
                         <Badge variant='secondary'>Yes</Badge>

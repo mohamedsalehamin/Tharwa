@@ -330,6 +330,8 @@ export const adminV1Routes: FastifyPluginAsync = async (app) => {
           select: {
             id: true,
             email: true,
+            displayName: true,
+            phone: true,
             emailVerifiedAt: true,
             passwordHash: true,
             authSubject: true,
@@ -343,6 +345,8 @@ export const adminV1Routes: FastifyPluginAsync = async (app) => {
         items: rows.map((r) => ({
           id: r.id,
           email: r.email,
+          name: r.displayName,
+          phone: r.phone,
           emailVerifiedAt: r.emailVerifiedAt?.toISOString() ?? null,
           hasPassword: r.passwordHash != null,
           hasAuthSubject: r.authSubject != null,

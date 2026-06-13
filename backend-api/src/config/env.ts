@@ -145,6 +145,16 @@ const envSchema = z.object({
   NETWORTH_SNAPSHOT_LEADER_TTL_SEC: z.coerce.number().int().min(30).max(600).default(120),
   /** Max consumers processed per snapshot tick (protects DB/quotes under load). */
   NETWORTH_SNAPSHOT_BATCH_SIZE: z.coerce.number().int().min(1).max(5000).default(500),
+  /** Background evaluation of consumer price alerts against live quotes. */
+  PRICE_ALERT_EVAL_ENABLED: z
+    .string()
+    .optional()
+    .default('true')
+    .transform((s) => s.toLowerCase() !== 'false' && s !== '0'),
+  PRICE_ALERT_EVAL_INTERVAL_SEC: z.coerce.number().int().min(30).max(600).default(90),
+  PRICE_ALERT_EVAL_LEADER_TTL_SEC: z.coerce.number().int().min(30).max(600).default(120),
+  /** Min seconds between repeat triggers for the same alert. */
+  PRICE_ALERT_COOLDOWN_SEC: z.coerce.number().int().min(60).max(86_400).default(3600),
   SERVICE_NAME: z.string().min(1).default('tharwa-backend-api'),
   BUILD_SHA: z.string().min(1).default('dev'),
   SENTRY_DSN: z.string().url().optional(),

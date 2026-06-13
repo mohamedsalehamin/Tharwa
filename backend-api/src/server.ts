@@ -15,6 +15,10 @@ import {
   startNetWorthSnapshots,
   stopNetWorthSnapshots,
 } from './jobs/capture-networth-snapshots.js';
+import {
+  startPriceAlertEvaluator,
+  stopPriceAlertEvaluator,
+} from './jobs/evaluate-price-alerts.js';
 
 async function main() {
   const env = loadEnv();
@@ -32,8 +36,10 @@ async function main() {
   startCorporateCalendarSync({ env, redis }, log);
   startDailyBriefs({ env, redis }, log);
   startNetWorthSnapshots({ env, redis }, log);
+  startPriceAlertEvaluator({ env, redis }, log);
 
   const shutdown = async () => {
+    stopPriceAlertEvaluator();
     stopNetWorthSnapshots();
     stopDailyBriefs();
     stopCorporateCalendarSync();

@@ -1,6 +1,7 @@
 import type { Env } from '../config/env.js';
 import { hashOpaqueToken, issueOpaqueToken } from '../lib/opaque-token.js';
 import { prisma } from '../lib/prisma.js';
+import { consumerUserPublicSelect, toConsumerUserPublic } from './consumer-user.js';
 
 export type IssuedRefreshToken = {
   refreshToken: string;
@@ -23,11 +24,16 @@ export async function issueConsumerRefreshToken(
 export async function rotateConsumerRefreshToken(
   env: Env,
   refreshToken: string,
-): Promise<{ userId: string; email: string; newRefreshToken: string; expiresAt: Date } | null> {
+): Promise<{
+  userId: string;
+  user: ReturnType<typeof toConsumerUserPublic>;
+  newRefreshToken: string;
+  expiresAt: Date;
+} | null> {
   const tokenHash = hashOpaqueToken(refreshToken);
   const row = await prisma.consumerRefreshToken.findUnique({
     where: { tokenHash },
-    include: { consumerUser: { select: { id: true, email: true } } },
+    include: { consumerUser: { select: consumerUserPublicSelect } },
   });
   if (!row || row.revokedAt || row.expiresAt <= new Date()) return null;
 
@@ -39,7 +45,7 @@ export async function rotateConsumerRefreshToken(
   const issued = await issueConsumerRefreshToken(env, row.consumerUserId);
   return {
     userId: row.consumerUser.id,
-    email: row.consumerUser.email,
+    user: toConsumerUserPublic(row.consumerUser),
     newRefreshToken: issued.refreshToken,
     expiresAt: issued.expiresAt,
   };

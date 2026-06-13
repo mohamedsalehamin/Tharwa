@@ -9,6 +9,11 @@ import { deleteConsumerAccount } from '../../services/consumer-account.js';
 import { registerConsumerWithPassword, verifyConsumerPasswordLogin } from '../../services/consumer-auth.js';
 import { signInWithSocialIdentity, SocialAuthError } from '../../services/consumer-social-auth.js';
 import {
+  getConsumerUserPublic,
+  updateConsumerProfile,
+  type ConsumerUserPublic,
+} from '../../services/consumer-user.js';
+import {
   SocialTokenError,
   verifyAppleIdToken,
   verifyGoogleIdToken,
@@ -32,6 +37,13 @@ import {
 const registerBody = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128),
+  name: z.string().min(1).max(120),
+  phone: z.string().min(8).max(20).regex(/^[\d+\s()-]+$/),
+});
+
+const profilePatchBody = z.object({
+  name: z.string().min(1).max(120).optional().nullable(),
+  phone: z.string().max(20).optional().nullable().or(z.literal('')),
 });
 
 const loginBody = z.object({
@@ -63,22 +75,26 @@ const deleteAccountBody = z.object({
 const socialLoginBody = z.object({
   provider: z.enum(['google', 'apple']),
   idToken: z.string().min(20).max(8192),
+  name: z.string().min(1).max(120).optional(),
 });
 
 function zodMessage(err: z.ZodError): string {
   return err.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
 }
 
-async function authTokens(ctx: AppCtx, userId: string, email: string) {
-  const accessToken = await signConsumerAccessToken(ctx.env, { sub: userId, email });
-  const refresh = await issueConsumerRefreshToken(ctx.env, userId);
+async function authTokens(ctx: AppCtx, profile: ConsumerUserPublic) {
+  const accessToken = await signConsumerAccessToken(ctx.env, {
+    sub: profile.id,
+    email: profile.email,
+  });
+  const refresh = await issueConsumerRefreshToken(ctx.env, profile.id);
   return {
     accessToken,
     tokenType: 'Bearer' as const,
     expiresIn: ctx.env.CONSUMER_ACCESS_TOKEN_TTL_SEC,
     refreshToken: refresh.refreshToken,
     refreshExpiresAt: refresh.expiresAt.toISOString(),
-    user: { id: userId, email },
+    user: profile,
   };
 }
 
@@ -95,23 +111,32 @@ export const v1AuthRoutes: FastifyPluginAsync = async (app) => {
       if (!parsed.success) {
         throw new AppError('VALIDATION', zodMessage(parsed.error), 400);
       }
-      const result = await registerConsumerWithPassword(parsed.data.email, parsed.data.password);
+      const result = await registerConsumerWithPassword(
+        parsed.data.email,
+        parsed.data.password,
+        parsed.data.name,
+        parsed.data.phone,
+      );
       if (!result.ok) {
         throw new AppError('CONFLICT', 'Email already registered', 409);
       }
-      const verification = await issueEmailVerificationToken(ctx().env, result.id);
+      const verification = await issueEmailVerificationToken(ctx().env, result.user.id);
       void sendEmailVerificationEmail(ctx().env, app.log, {
-        email: result.email,
+        email: result.user.email,
         verificationToken: verification.verificationToken,
         expiresAt: verification.expiresAt,
       }).catch(() => {});
-      const tokens = await authTokens(ctx(), result.id, result.email);
+      const tokens = await authTokens(ctx(), result.user);
       const body: Record<string, unknown> = { ...tokens };
       if (ctx().env.NODE_ENV === 'development') {
         body.verificationToken = verification.verificationToken;
       }
       return reply.status(201).send(body);
     } catch (e) {
+      if (e instanceof Error && (e.message === 'Invalid phone number' || e.message === 'Invalid name')) {
+        if (!reply.sent) sendError(reply, new AppError('VALIDATION', e.message, 400));
+        return;
+      }
       if (!reply.sent) sendError(reply, e);
       return;
     }
@@ -134,8 +159,16 @@ export const v1AuthRoutes: FastifyPluginAsync = async (app) => {
       } else {
         identity = await verifyAppleIdToken(parsed.data.idToken, env.APPLE_SIGN_IN_CLIENT_IDS);
       }
-      const user = await signInWithSocialIdentity(identity);
-      return reply.send(await authTokens(ctx(), user.id, user.email));
+      let user;
+      try {
+        user = await signInWithSocialIdentity(identity, { displayName: parsed.data.name });
+      } catch (e) {
+        if (e instanceof Error && e.message === 'Invalid name') {
+          throw new AppError('VALIDATION', 'Invalid name', 400);
+        }
+        throw e;
+      }
+      return reply.send(await authTokens(ctx(), user));
     } catch (e) {
       if (e instanceof SocialTokenError) {
         if (!reply.sent) sendError(reply, new AppError('UNAUTHORIZED', e.message, 401));
@@ -170,7 +203,7 @@ export const v1AuthRoutes: FastifyPluginAsync = async (app) => {
       if (!user) {
         throw new AppError('UNAUTHORIZED', 'Invalid credentials', 401);
       }
-      return reply.send(await authTokens(ctx(), user.id, user.email));
+      return reply.send(await authTokens(ctx(), user));
     } catch (e) {
       if (!reply.sent) sendError(reply, e);
       return;
@@ -193,7 +226,7 @@ export const v1AuthRoutes: FastifyPluginAsync = async (app) => {
       }
       const accessToken = await signConsumerAccessToken(ctx().env, {
         sub: rotated.userId,
-        email: rotated.email,
+        email: rotated.user.email,
       });
       return reply.send({
         accessToken,
@@ -201,7 +234,7 @@ export const v1AuthRoutes: FastifyPluginAsync = async (app) => {
         expiresIn: ctx().env.CONSUMER_ACCESS_TOKEN_TTL_SEC,
         refreshToken: rotated.newRefreshToken,
         refreshExpiresAt: rotated.expiresAt.toISOString(),
-        user: { id: rotated.userId, email: rotated.email },
+        user: rotated.user,
       });
     } catch (e) {
       if (!reply.sent) sendError(reply, e);
@@ -266,7 +299,7 @@ export const v1AuthRoutes: FastifyPluginAsync = async (app) => {
       if (!user) {
         throw new AppError('UNAUTHORIZED', 'Invalid or expired reset token', 401);
       }
-      return reply.send(await authTokens(ctx(), user.id, user.email));
+      return reply.send(await authTokens(ctx(), user));
     } catch (e) {
       if (!reply.sent) sendError(reply, e);
     }
@@ -287,6 +320,53 @@ export const v1AuthRoutes: FastifyPluginAsync = async (app) => {
       if (!reply.sent) sendError(reply, e);
     }
   });
+
+  app.get(
+    '/me',
+    { preHandler: consumerBearerPreHandler(ctx().env) },
+    async (req, reply) => {
+      try {
+        const profile = await getConsumerUserPublic(req.consumer!.id);
+        if (!profile) {
+          throw new AppError('NOT_FOUND', 'Account not found', 404);
+        }
+        return reply.send(profile);
+      } catch (e) {
+        if (!reply.sent) sendError(reply, e);
+      }
+    },
+  );
+
+  app.patch(
+    '/me',
+    { preHandler: consumerBearerPreHandler(ctx().env) },
+    async (req, reply) => {
+      try {
+        const parsed = profilePatchBody.safeParse(req.body);
+        if (!parsed.success) {
+          throw new AppError('VALIDATION', zodMessage(parsed.error), 400);
+        }
+        let profile;
+        try {
+          profile = await updateConsumerProfile(req.consumer!.id, {
+            name: parsed.data.name,
+            phone: parsed.data.phone,
+          });
+        } catch (e) {
+          if (e instanceof Error && (e.message === 'Invalid phone number' || e.message === 'Invalid name')) {
+            throw new AppError('VALIDATION', e.message, 400);
+          }
+          throw e;
+        }
+        if (!profile) {
+          throw new AppError('NOT_FOUND', 'Account not found', 404);
+        }
+        return reply.send(profile);
+      } catch (e) {
+        if (!reply.sent) sendError(reply, e);
+      }
+    },
+  );
 
   app.delete(
     '/auth/account',

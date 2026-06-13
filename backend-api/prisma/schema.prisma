@@ -366,6 +366,8 @@ model AdminAuditLog {
 model ConsumerUser {
   id              String    @id @default(uuid())
   email           String    @unique
+  displayName     String?   @map("display_name")
+  phone           String?
   passwordHash    String?   @map("password_hash")
   authSubject     String?   @map("auth_subject")
   emailVerifiedAt DateTime? @map("email_verified_at")

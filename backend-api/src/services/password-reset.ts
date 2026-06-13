@@ -2,6 +2,11 @@ import type { Env } from '../config/env.js';
 import { hashOpaqueToken, issueOpaqueToken } from '../lib/opaque-token.js';
 import { prisma } from '../lib/prisma.js';
 import { hashPassword } from './password.js';
+import {
+  consumerUserPublicSelect,
+  toConsumerUserPublic,
+  type ConsumerUserPublic,
+} from './consumer-user.js';
 
 export type IssuedPasswordReset = {
   resetToken: string;
@@ -37,7 +42,7 @@ export async function issuePasswordResetToken(
 export async function consumePasswordResetToken(
   resetToken: string,
   newPassword: string,
-): Promise<{ id: string; email: string } | null> {
+): Promise<ConsumerUserPublic | null> {
   const tokenHash = hashOpaqueToken(resetToken);
   const row = await prisma.passwordResetToken.findUnique({
     where: { tokenHash },
@@ -46,7 +51,7 @@ export async function consumePasswordResetToken(
   if (!row || row.usedAt || row.expiresAt <= new Date()) return null;
 
   const passwordHash = await hashPassword(newPassword);
-  await prisma.$transaction([
+  const [, updated] = await prisma.$transaction([
     prisma.passwordResetToken.update({
       where: { id: row.id },
       data: { usedAt: new Date() },
@@ -54,8 +59,8 @@ export async function consumePasswordResetToken(
     prisma.consumerUser.update({
       where: { id: row.consumerUserId },
       data: { passwordHash },
+      select: consumerUserPublicSelect,
     }),
   ]);
-
-  return { id: row.consumerUser.id, email: row.consumerUser.email };
+  return toConsumerUserPublic(updated);
 }

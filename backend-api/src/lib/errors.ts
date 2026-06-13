@@ -12,6 +12,18 @@ export class AppError extends Error {
   }
 }
 
+/** Avoid leaking Prisma/SQL internals to API clients. */
+function clientSafeMessage(err: unknown): string {
+  if (err instanceof AppError) return err.message;
+  if (err instanceof Error) {
+    const m = err.message;
+    if (/prisma/i.test(m) || /invocation/i.test(m) || /Unknown field/i.test(m)) {
+      return 'Something went wrong. Please try again later.';
+    }
+  }
+  return 'Internal error';
+}
+
 export function sendError(reply: FastifyReply, err: unknown): void {
   if (err instanceof AppError) {
     if (err.statusCode >= 500) {
@@ -21,6 +33,5 @@ export function sendError(reply: FastifyReply, err: unknown): void {
     return;
   }
   captureException(err);
-  const message = err instanceof Error ? err.message : 'Internal error';
-  void reply.status(500).send({ code: 'INTERNAL', message });
+  void reply.status(500).send({ code: 'INTERNAL', message: clientSafeMessage(err) });
 }

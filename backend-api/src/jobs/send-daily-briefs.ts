@@ -3,6 +3,7 @@ import type { Logger } from 'pino';
 import type { AppCtx } from '../app-context.js';
 import { withRedisLeader } from '../lib/redis-leader.js';
 import { fetchMarketBriefSnapshot, formatMarketBriefMessages } from '../services/daily-brief.js';
+import { cairoDateKey, isEgxTradingDay } from '../services/egx-trading-day.js';
 import { isFcmConfigured } from '../services/fcm.js';
 import { sendLocalizedPush } from '../services/push-devices.js';
 import { sendAllWatchlistBriefs } from '../services/watchlist-brief.js';
@@ -13,10 +14,6 @@ const LAST_SENT_DAY_KEY = 'jobs:daily-briefs:last-sent-day';
 const holderId = randomUUID();
 let briefTimer: ReturnType<typeof setInterval> | null = null;
 let tickInFlight = false;
-
-function cairoDateKey(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date());
-}
 
 function cairoHourMinute(): { hour: number; minute: number } {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -47,6 +44,7 @@ async function shouldSendToday(ctx: AppCtx): Promise<boolean> {
 
 export type DailyBriefTickResult = {
   sent: boolean;
+  skippedNonTradingDay?: boolean;
   market?: {
     targetedDeviceCount: number;
     successCount: number;
@@ -67,6 +65,15 @@ export async function runDailyBriefTick(ctx: AppCtx, log: Logger): Promise<Daily
     return { sent: false };
   }
 
+  const today = cairoDateKey();
+  const tradingDay = await isEgxTradingDay(new Date());
+
+  if (!tradingDay) {
+    await ctx.redis.set(LAST_SENT_DAY_KEY, today, 'EX', 60 * 60 * 48);
+    log.info({ day: today }, 'daily briefs skipped — EGX non-trading day');
+    return { sent: false, skippedNonTradingDay: true };
+  }
+
   const snapshot = await fetchMarketBriefSnapshot(ctx.env, ctx.redis, log);
   const marketMessages = formatMarketBriefMessages(snapshot);
   const market = await sendLocalizedPush(ctx.env, {
@@ -77,7 +84,6 @@ export async function runDailyBriefTick(ctx: AppCtx, log: Logger): Promise<Daily
 
   const watchlist = await sendAllWatchlistBriefs(ctx.env, ctx.redis, log);
 
-  const today = cairoDateKey();
   await ctx.redis.set(LAST_SENT_DAY_KEY, today, 'EX', 60 * 60 * 48);
 
   log.info(

@@ -1,5 +1,7 @@
 import {
   Bell,
+  BookOpen,
+  CalendarDays,
   FileText,
   Globe,
   Layers,
@@ -56,6 +58,11 @@ export const sidebarData: SidebarData = {
           icon: Megaphone,
         },
         {
+          title: 'Learn content',
+          url: '/learn',
+          icon: BookOpen,
+        },
+        {
           title: 'Contact',
           url: '/contact',
           icon: Mail,
@@ -74,6 +81,11 @@ export const sidebarData: SidebarData = {
           title: 'Push notifications',
           url: '/push',
           icon: Bell,
+        },
+        {
+          title: 'EGX holidays',
+          url: '/egx-holidays',
+          icon: CalendarDays,
         },
         {
           title: 'Integrations',

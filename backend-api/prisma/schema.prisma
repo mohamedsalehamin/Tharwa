@@ -95,6 +95,11 @@ enum SiteMenuLinkType {
   external
 }
 
+enum EgxHolidaySource {
+  calendarlabs
+  admin
+}
+
 enum NetWorthComponentKind {
   asset
   liability
@@ -190,6 +195,35 @@ model CorporateCalendarSyncRun {
   @@map("corporate_calendar_sync_runs")
 }
 
+/// EGX exchange closure dates — synced from CalendarLabs and admin ad-hoc entries.
+model EgxMarketHoliday {
+  id               String           @id @default(uuid())
+  holidayDate      DateTime         @unique @map("holiday_date") @db.Date
+  nameEn           String           @map("name_en")
+  nameAr           String?          @map("name_ar")
+  source           EgxHolidaySource @default(calendarlabs)
+  createdByAdminId String?          @map("created_by_admin_id")
+  createdByAdmin   AdminUser?       @relation(fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  @@index([holidayDate])
+  @@index([source])
+  @@map("egx_market_holidays")
+}
+
+model EgxHolidaySyncRun {
+  id             String   @id @default(uuid())
+  success        Boolean
+  years          Int[]    @default([])
+  holidaysUpserted Int    @default(0) @map("holidays_upserted")
+  errorMessage   String?  @map("error_message")
+  finishedAt     DateTime @default(now()) @map("finished_at")
+
+  @@index([finishedAt(sort: Desc)])
+  @@map("egx_holiday_sync_runs")
+}
+
 /// Gold karat pricing derived from a 24k gram anchor (replaces untyped `metadata` karat math).
 model MetalKaratRule {
   id               String     @id @default(uuid())
@@ -274,6 +308,8 @@ model AdminUser {
   auditLogs            AdminAuditLog[]
   platformIntegrations PlatformIntegration[]
   announcements        ConsumerAnnouncement[]
+  egxHolidaysCreated   EgxMarketHoliday[]
+  learnArticlesCreated LearnArticle[]
 
   @@map("admin_users")
 }
@@ -653,4 +689,121 @@ model InflationBenchmark {
 
   @@index([periodMonth(sort: Desc)])
   @@map("inflation_benchmarks")
+}
+
+/// Glossary section tab (Learn → glossary categories).
+model GlossaryCategory {
+  id          String         @id @default(uuid())
+  titleAr     String         @map("title_ar")
+  titleEn     String         @map("title_en")
+  sortOrder   Int            @default(0) @map("sort_order")
+  isPublished Boolean        @default(false) @map("is_published")
+  terms       GlossaryTerm[]
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@index([isPublished, sortOrder])
+  @@map("glossary_categories")
+}
+
+/// Bilingual investing glossary (Learn section).
+model GlossaryTerm {
+  id           String           @id @default(uuid())
+  categoryId   String           @map("category_id")
+  category     GlossaryCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  termAr       String           @map("term_ar")
+  termEn       String           @map("term_en")
+  definitionAr String           @map("definition_ar") @db.Text
+  definitionEn String           @map("definition_en") @db.Text
+  sortOrder    Int              @default(0) @map("sort_order")
+  isPublished  Boolean          @default(false) @map("is_published")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  @@index([categoryId, sortOrder])
+  @@index([isPublished, sortOrder])
+  @@map("glossary_terms")
+}
+
+/// Short educational articles (Learn section).
+model LearnArticle {
+  id               String     @id @default(uuid())
+  slug             String     @unique
+  titleAr          String     @map("title_ar")
+  titleEn          String     @map("title_en")
+  excerptAr        String?    @map("excerpt_ar") @db.Text
+  excerptEn        String?    @map("excerpt_en") @db.Text
+  contentAr        String     @map("content_ar") @db.Text
+  contentEn        String     @map("content_en") @db.Text
+  isPublished      Boolean    @default(false) @map("is_published")
+  sortOrder        Int        @default(0) @map("sort_order")
+  publishedAt      DateTime?  @map("published_at")
+  createdByAdminId String?    @map("created_by_admin_id")
+  createdByAdmin   AdminUser? @relation(fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  @@index([isPublished, sortOrder])
+  @@map("learn_articles")
+}
+
+/// YouTube course section (e.g. beginners, technical analysis).
+model LearnCourseCategory {
+  id            String              @id @default(uuid())
+  titleAr       String              @map("title_ar")
+  titleEn       String              @map("title_en")
+  descriptionAr String?             @map("description_ar") @db.Text
+  descriptionEn String?             @map("description_en") @db.Text
+  sortOrder     Int                 @default(0) @map("sort_order")
+  isPublished   Boolean             @default(false) @map("is_published")
+  courses       LearnCourse[]
+  lessons       LearnCourseLesson[]
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  @@index([isPublished, sortOrder])
+  @@map("learn_course_categories")
+}
+
+/// Course within a section — optional grouping for a series of lessons.
+model LearnCourse {
+  id                String              @id @default(uuid())
+  categoryId        String              @map("category_id")
+  category          LearnCourseCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  titleAr           String              @map("title_ar")
+  titleEn           String              @map("title_en")
+  descriptionAr     String?             @map("description_ar") @db.Text
+  descriptionEn     String?             @map("description_en") @db.Text
+  youtubePlaylistId String?             @map("youtube_playlist_id")
+  sortOrder         Int                 @default(0) @map("sort_order")
+  isPublished       Boolean             @default(false) @map("is_published")
+  lessons           LearnCourseLesson[]
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  @@index([categoryId, sortOrder])
+  @@map("learn_courses")
+}
+
+/// YouTube lesson within a section — standalone (no course) or part of a course.
+model LearnCourseLesson {
+  id             String              @id @default(uuid())
+  categoryId     String              @map("category_id")
+  category       LearnCourseCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  courseId       String?             @map("course_id")
+  course         LearnCourse?        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  titleAr        String              @map("title_ar")
+  titleEn        String              @map("title_en")
+  descriptionAr  String?             @map("description_ar") @db.Text
+  descriptionEn  String?             @map("description_en") @db.Text
+  youtubeVideoId String              @map("youtube_video_id")
+  durationSec    Int?                @map("duration_sec")
+  sortOrder      Int                 @default(0) @map("sort_order")
+  isPublished    Boolean             @default(false) @map("is_published")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  @@index([categoryId, sortOrder])
+  @@index([courseId, sortOrder])
+  @@map("learn_course_lessons")
 }

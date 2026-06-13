@@ -1,0 +1,859 @@
+import { useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { BookOpen, GraduationCap, Library, ListVideo, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { adminFetch } from '@/lib/admin-api'
+import { useAuthStore } from '@/stores/auth-store'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
+import { ProfileDropdown } from '@/components/profile-dropdown'
+import { ThemeSwitch } from '@/components/theme-switch'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { RichTextEditor, RichTextPreview } from '@/components/rich-text-editor'
+import { Switch } from '@/components/ui/switch'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { toast } from 'sonner'
+
+type Tab = 'glossary' | 'articles' | 'courses'
+
+type GlossaryTermItem = {
+  id: string
+  categoryId: string
+  termAr: string
+  termEn: string
+  definitionAr: string
+  definitionEn: string
+  sortOrder: number
+  isPublished: boolean
+}
+
+type GlossaryCategoryItem = {
+  id: string
+  titleAr: string
+  titleEn: string
+  sortOrder: number
+  isPublished: boolean
+  terms: GlossaryTermItem[]
+}
+
+type ArticleItem = {
+  id: string
+  slug: string
+  titleAr: string
+  titleEn: string
+  excerptAr: string | null
+  excerptEn: string | null
+  contentAr: string
+  contentEn: string
+  readingTimeMin: number
+  sortOrder: number
+  isPublished: boolean
+}
+
+type LessonItem = {
+  id: string
+  categoryId: string
+  courseId: string | null
+  titleAr: string
+  titleEn: string
+  youtubeVideoId: string
+  youtubeUrl: string
+  sortOrder: number
+  isPublished: boolean
+}
+
+type CourseItem = {
+  id: string
+  categoryId: string
+  titleAr: string
+  titleEn: string
+  youtubePlaylistId: string | null
+  sortOrder: number
+  isPublished: boolean
+  lessons: LessonItem[]
+}
+
+type CategoryItem = {
+  id: string
+  titleAr: string
+  titleEn: string
+  descriptionAr: string | null
+  descriptionEn: string | null
+  sortOrder: number
+  isPublished: boolean
+  standaloneLessons: LessonItem[]
+  courses: CourseItem[]
+}
+
+const EMPTY_GLOSSARY_CATEGORY = {
+  titleAr: '',
+  titleEn: '',
+  sortOrder: '0',
+  isPublished: true,
+}
+
+const EMPTY_GLOSSARY = {
+  termAr: '',
+  termEn: '',
+  definitionAr: '',
+  definitionEn: '',
+  sortOrder: '0',
+  isPublished: true,
+}
+
+const EMPTY_ARTICLE = {
+  slug: '',
+  titleAr: '',
+  titleEn: '',
+  excerptAr: '',
+  excerptEn: '',
+  contentAr: '',
+  contentEn: '',
+  sortOrder: '0',
+  isPublished: false,
+}
+
+const EMPTY_CATEGORY = {
+  titleAr: '',
+  titleEn: '',
+  descriptionAr: '',
+  descriptionEn: '',
+  sortOrder: '0',
+  isPublished: true,
+}
+
+const EMPTY_COURSE = {
+  titleAr: '',
+  titleEn: '',
+  sortOrder: '0',
+  isPublished: true,
+}
+
+const EMPTY_PLAYLIST = {
+  playlistUrl: '',
+  titleAr: '',
+  titleEn: '',
+  replaceExisting: false,
+  isPublished: true,
+}
+
+const EMPTY_LESSON = {
+  titleAr: '',
+  titleEn: '',
+  youtubeVideoId: '',
+  courseId: '',
+  sortOrder: '0',
+  isPublished: true,
+}
+
+export function LearnContentPanel() {
+  const token = useAuthStore((s) => s.auth.accessToken)
+  const queryClient = useQueryClient()
+  const [tab, setTab] = useState<Tab>('glossary')
+  const [glossaryCategoryForm, setGlossaryCategoryForm] = useState(EMPTY_GLOSSARY_CATEGORY)
+  const [glossaryForm, setGlossaryForm] = useState(EMPTY_GLOSSARY)
+  const [selectedGlossaryCategoryId, setSelectedGlossaryCategoryId] = useState<string | null>(null)
+  const [articleForm, setArticleForm] = useState(EMPTY_ARTICLE)
+  const [categoryForm, setCategoryForm] = useState(EMPTY_CATEGORY)
+  const [courseForm, setCourseForm] = useState(EMPTY_COURSE)
+  const [playlistForm, setPlaylistForm] = useState(EMPTY_PLAYLIST)
+  const [lessonForm, setLessonForm] = useState(EMPTY_LESSON)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ kind: string; id: string; label: string } | null>(null)
+
+  const glossaryQuery = useQuery({
+    queryKey: ['admin', 'learn', 'glossary'],
+    enabled: Boolean(token) && tab === 'glossary',
+    queryFn: () => adminFetch<{ categories: GlossaryCategoryItem[] }>('/admin/v1/learn/glossary', token!),
+  })
+
+  const articlesQuery = useQuery({
+    queryKey: ['admin', 'learn', 'articles'],
+    enabled: Boolean(token) && tab === 'articles',
+    queryFn: () => adminFetch<{ items: ArticleItem[] }>('/admin/v1/learn/articles', token!),
+  })
+
+  const coursesQuery = useQuery({
+    queryKey: ['admin', 'learn', 'courses'],
+    enabled: Boolean(token) && tab === 'courses',
+    queryFn: () => adminFetch<{ items: CategoryItem[] }>('/admin/v1/learn/courses', token!),
+  })
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ['admin', 'learn'] })
+  }
+
+  const createGlossaryCategory = useMutation({
+    mutationFn: () =>
+      adminFetch('/admin/v1/learn/glossary/categories', token!, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...glossaryCategoryForm,
+          sortOrder: Number(glossaryCategoryForm.sortOrder) || 0,
+        }),
+      }),
+    onSuccess: () => {
+      toast.success('Glossary category added')
+      setGlossaryCategoryForm(EMPTY_GLOSSARY_CATEGORY)
+      invalidate()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const createGlossary = useMutation({
+    mutationFn: () => {
+      if (!selectedGlossaryCategoryId) throw new Error('Select a category first')
+      return adminFetch(`/admin/v1/learn/glossary/categories/${selectedGlossaryCategoryId}/terms`, token!, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...glossaryForm,
+          sortOrder: Number(glossaryForm.sortOrder) || 0,
+        }),
+      })
+    },
+    onSuccess: () => {
+      toast.success('Term added')
+      setGlossaryForm(EMPTY_GLOSSARY)
+      invalidate()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const createArticle = useMutation({
+    mutationFn: () =>
+      adminFetch('/admin/v1/learn/articles', token!, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...articleForm,
+          sortOrder: Number(articleForm.sortOrder) || 0,
+          excerptAr: articleForm.excerptAr || null,
+          excerptEn: articleForm.excerptEn || null,
+        }),
+      }),
+    onSuccess: () => {
+      toast.success('Article created')
+      setArticleForm(EMPTY_ARTICLE)
+      invalidate()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const createCategory = useMutation({
+    mutationFn: () =>
+      adminFetch('/admin/v1/learn/courses/categories', token!, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...categoryForm,
+          sortOrder: Number(categoryForm.sortOrder) || 0,
+          descriptionAr: categoryForm.descriptionAr || null,
+          descriptionEn: categoryForm.descriptionEn || null,
+        }),
+      }),
+    onSuccess: () => {
+      toast.success('Section created')
+      setCategoryForm(EMPTY_CATEGORY)
+      invalidate()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const createCourse = useMutation({
+    mutationFn: () => {
+      if (!selectedCategoryId) throw new Error('Select a section first')
+      return adminFetch(`/admin/v1/learn/courses/categories/${selectedCategoryId}/courses`, token!, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...courseForm,
+          sortOrder: Number(courseForm.sortOrder) || 0,
+        }),
+      })
+    },
+    onSuccess: () => {
+      toast.success('Course created')
+      setCourseForm(EMPTY_COURSE)
+      invalidate()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const importPlaylist = useMutation({
+    mutationFn: () => {
+      if (!selectedCategoryId) throw new Error('Select a section first')
+      return adminFetch<{ importedCount: number; skippedCount: number }>(
+        `/admin/v1/learn/courses/categories/${selectedCategoryId}/import-playlist`,
+        token!,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            playlistUrl: playlistForm.playlistUrl.trim(),
+            titleAr: playlistForm.titleAr.trim() || undefined,
+            titleEn: playlistForm.titleEn.trim() || undefined,
+            replaceExisting: playlistForm.replaceExisting,
+            isPublished: playlistForm.isPublished,
+          }),
+        },
+      )
+    },
+    onSuccess: (data) => {
+      toast.success(`Imported ${data.importedCount} videos (${data.skippedCount} skipped)`)
+      setPlaylistForm(EMPTY_PLAYLIST)
+      invalidate()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const createLesson = useMutation({
+    mutationFn: () => {
+      if (!selectedCategoryId) throw new Error('Select a section first')
+      return adminFetch(`/admin/v1/learn/courses/categories/${selectedCategoryId}/lessons`, token!, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...lessonForm,
+          courseId: lessonForm.courseId || null,
+          sortOrder: Number(lessonForm.sortOrder) || 0,
+        }),
+      })
+    },
+    onSuccess: () => {
+      toast.success('Video added')
+      setLessonForm(EMPTY_LESSON)
+      invalidate()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (target: { kind: string; id: string }) => {
+      const paths: Record<string, string> = {
+        glossary: `/admin/v1/learn/glossary/${target.id}`,
+        glossaryCategory: `/admin/v1/learn/glossary/categories/${target.id}`,
+        article: `/admin/v1/learn/articles/${target.id}`,
+        category: `/admin/v1/learn/courses/categories/${target.id}`,
+        course: `/admin/v1/learn/courses/courses/${target.id}`,
+        lesson: `/admin/v1/learn/courses/lessons/${target.id}`,
+      }
+      await adminFetch(paths[target.kind]!, token!, { method: 'DELETE' })
+    },
+    onSuccess: () => {
+      toast.success('Deleted')
+      setDeleteTarget(null)
+      invalidate()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const glossaryCategories = glossaryQuery.data?.categories ?? []
+  const selectedGlossaryCategory = useMemo(
+    () => glossaryCategories.find((c) => c.id === selectedGlossaryCategoryId) ?? glossaryCategories[0] ?? null,
+    [glossaryCategories, selectedGlossaryCategoryId],
+  )
+
+  const glossaryCategorySelect = (
+    <div>
+      <Label>Category</Label>
+      <select
+        className='mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm'
+        value={selectedGlossaryCategory?.id ?? ''}
+        onChange={(e) => setSelectedGlossaryCategoryId(e.target.value)}
+      >
+        {glossaryCategories.length === 0 ? <option value=''>No categories yet</option> : null}
+        {glossaryCategories.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.titleEn}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+
+  const categories = coursesQuery.data?.items ?? []
+  const selectedCategory = useMemo(
+    () => categories.find((c) => c.id === selectedCategoryId) ?? categories[0] ?? null,
+    [categories, selectedCategoryId],
+  )
+
+  const sectionSelect = (
+    <div>
+      <Label>Section</Label>
+      <select
+        className='mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm'
+        value={selectedCategory?.id ?? ''}
+        onChange={(e) => setSelectedCategoryId(e.target.value)}
+      >
+        {categories.length === 0 ? <option value=''>No sections yet</option> : null}
+        {categories.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.titleEn}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+
+  return (
+    <>
+      <Header>
+        <div className='flex flex-1 items-center justify-between gap-4'>
+          <div>
+            <h1 className='text-lg font-semibold'>Learn content</h1>
+            <p className='text-sm text-muted-foreground'>
+              Glossary, articles, and YouTube courses for the mobile app
+            </p>
+          </div>
+          <div className='flex items-center gap-2'>
+            <ThemeSwitch />
+            <ProfileDropdown />
+          </div>
+        </div>
+      </Header>
+
+      <Main>
+        <div className='mb-4 flex flex-wrap gap-2'>
+          {(
+            [
+              ['glossary', 'Glossary', Library],
+              ['articles', 'Articles', BookOpen],
+              ['courses', 'Courses', GraduationCap],
+            ] as const
+          ).map(([key, label, Icon]) => (
+            <Button
+              key={key}
+              variant={tab === key ? 'default' : 'outline'}
+              size='sm'
+              onClick={() => setTab(key)}
+            >
+              <Icon className='mr-2 size-4' />
+              {label}
+            </Button>
+          ))}
+          <Button variant='ghost' size='sm' onClick={() => invalidate()} className='ml-auto'>
+            <RefreshCw className='mr-2 size-4' />
+            Refresh
+          </Button>
+        </div>
+
+        {tab === 'glossary' ? (
+          <div className='space-y-4'>
+            <div className='grid gap-4 lg:grid-cols-2'>
+              <Card>
+                <CardHeader>
+                  <CardTitle className='text-base'>Add category</CardTitle>
+                  <CardDescription>Tabs shown in the mobile glossary screen.</CardDescription>
+                </CardHeader>
+                <CardContent className='space-y-3'>
+                  <div className='grid gap-3 sm:grid-cols-2'>
+                    <div>
+                      <Label>Title (AR)</Label>
+                      <Input value={glossaryCategoryForm.titleAr} onChange={(e) => setGlossaryCategoryForm({ ...glossaryCategoryForm, titleAr: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Title (EN)</Label>
+                      <Input value={glossaryCategoryForm.titleEn} onChange={(e) => setGlossaryCategoryForm({ ...glossaryCategoryForm, titleEn: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className='flex items-center gap-2'>
+                    <Switch checked={glossaryCategoryForm.isPublished} onCheckedChange={(v) => setGlossaryCategoryForm({ ...glossaryCategoryForm, isPublished: v })} />
+                    <Label>Published</Label>
+                  </div>
+                  <Button onClick={() => createGlossaryCategory.mutate()} disabled={createGlossaryCategory.isPending}>
+                    <Plus className='mr-2 size-4' /> Add category
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className='text-base'>Add term</CardTitle>
+                </CardHeader>
+                <CardContent className='space-y-3'>
+                  {glossaryCategorySelect}
+                  <div className='grid gap-3 sm:grid-cols-2'>
+                    <div>
+                      <Label>Term (AR)</Label>
+                      <Input value={glossaryForm.termAr} onChange={(e) => setGlossaryForm({ ...glossaryForm, termAr: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Term (EN)</Label>
+                      <Input value={glossaryForm.termEn} onChange={(e) => setGlossaryForm({ ...glossaryForm, termEn: e.target.value })} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Definition (AR)</Label>
+                    <RichTextEditor
+                      value={glossaryForm.definitionAr}
+                      onChange={(html) => setGlossaryForm({ ...glossaryForm, definitionAr: html })}
+                      dir='rtl'
+                      placeholder='اكتب التعريف…'
+                    />
+                  </div>
+                  <div>
+                    <Label>Definition (EN)</Label>
+                    <RichTextEditor
+                      value={glossaryForm.definitionEn}
+                      onChange={(html) => setGlossaryForm({ ...glossaryForm, definitionEn: html })}
+                      dir='ltr'
+                      placeholder='Write the definition…'
+                    />
+                  </div>
+                  <div className='flex items-center gap-2'>
+                    <Switch checked={glossaryForm.isPublished} onCheckedChange={(v) => setGlossaryForm({ ...glossaryForm, isPublished: v })} />
+                    <Label>Published</Label>
+                  </div>
+                  <Button onClick={() => createGlossary.mutate()} disabled={createGlossary.isPending || !selectedGlossaryCategory}>
+                    <Plus className='mr-2 size-4' /> Add term
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+            {glossaryCategories.map((cat) => (
+              <Card key={cat.id}>
+                <CardHeader className='flex flex-row items-start justify-between gap-4'>
+                  <div>
+                    <CardTitle className='text-base'>{cat.titleEn}</CardTitle>
+                    <CardDescription dir='rtl'>{cat.titleAr}</CardDescription>
+                  </div>
+                  <div className='flex items-center gap-2'>
+                    <Badge variant={cat.isPublished ? 'secondary' : 'outline'}>
+                      {cat.isPublished ? 'Live' : 'Draft'}
+                    </Badge>
+                    <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'glossaryCategory', id: cat.id, label: cat.titleEn })}>
+                      <Trash2 className='size-4' />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Term</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cat.terms.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={3} className='text-muted-foreground'>
+                            No terms in this category.
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                      {cat.terms.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell>
+                            <div>{row.termEn}</div>
+                            <div className='text-sm text-muted-foreground' dir='rtl'>{row.termAr}</div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={row.isPublished ? 'secondary' : 'outline'}>
+                              {row.isPublished ? 'Live' : 'Draft'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'glossary', id: row.id, label: row.termEn })}>
+                              <Trash2 className='size-4' />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : null}
+
+        {tab === 'articles' ? (
+          <div className='grid gap-4 lg:grid-cols-2'>
+            <Card>
+              <CardHeader>
+                <CardTitle className='text-base'>New article</CardTitle>
+                <CardDescription>Reading time is computed automatically from content length.</CardDescription>
+              </CardHeader>
+              <CardContent className='space-y-3'>
+                <div>
+                  <Label>Slug</Label>
+                  <Input value={articleForm.slug} onChange={(e) => setArticleForm({ ...articleForm, slug: e.target.value })} placeholder='what-is-pe-ratio' />
+                </div>
+                <div className='grid gap-3 sm:grid-cols-2'>
+                  <div>
+                    <Label>Title (AR)</Label>
+                    <Input value={articleForm.titleAr} onChange={(e) => setArticleForm({ ...articleForm, titleAr: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label>Title (EN)</Label>
+                    <Input value={articleForm.titleEn} onChange={(e) => setArticleForm({ ...articleForm, titleEn: e.target.value })} />
+                  </div>
+                </div>
+                <div>
+                  <Label>Content (AR)</Label>
+                  <RichTextEditor
+                    value={articleForm.contentAr}
+                    onChange={(html) => setArticleForm({ ...articleForm, contentAr: html })}
+                    dir='rtl'
+                    placeholder='اكتب المقال…'
+                  />
+                </div>
+                <div>
+                  <Label>Content (EN)</Label>
+                  <RichTextEditor
+                    value={articleForm.contentEn}
+                    onChange={(html) => setArticleForm({ ...articleForm, contentEn: html })}
+                    dir='ltr'
+                    placeholder='Write the article…'
+                  />
+                </div>
+                {articleForm.contentAr ? (
+                  <div>
+                    <Label className='mb-2 block'>Preview (AR)</Label>
+                    <RichTextPreview html={articleForm.contentAr} dir='rtl' />
+                  </div>
+                ) : null}
+                <div className='flex items-center gap-2'>
+                  <Switch checked={articleForm.isPublished} onCheckedChange={(v) => setArticleForm({ ...articleForm, isPublished: v })} />
+                  <Label>Published</Label>
+                </div>
+                <Button onClick={() => createArticle.mutate()} disabled={createArticle.isPending}>
+                  <Plus className='mr-2 size-4' /> Create article
+                </Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className='text-base'>Articles</CardTitle></CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Read</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(articlesQuery.data?.items ?? []).map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>
+                          <div>{row.titleEn}</div>
+                          <div className='text-xs text-muted-foreground'>{row.slug}</div>
+                        </TableCell>
+                        <TableCell>{row.readingTimeMin} min</TableCell>
+                        <TableCell>
+                          <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'article', id: row.id, label: row.titleEn })}>
+                            <Trash2 className='size-4' />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
+
+        {tab === 'courses' ? (
+          <div className='grid gap-4 lg:grid-cols-2'>
+            <div className='space-y-4'>
+              <Card>
+                <CardHeader>
+                  <CardTitle className='text-base'>Section</CardTitle>
+                  <CardDescription>Top-level grouping (e.g. For beginners, Technical analysis).</CardDescription>
+                </CardHeader>
+                <CardContent className='space-y-3'>
+                  <div className='grid gap-3 sm:grid-cols-2'>
+                    <Input placeholder='Title AR' value={categoryForm.titleAr} onChange={(e) => setCategoryForm({ ...categoryForm, titleAr: e.target.value })} />
+                    <Input placeholder='Title EN' value={categoryForm.titleEn} onChange={(e) => setCategoryForm({ ...categoryForm, titleEn: e.target.value })} />
+                  </div>
+                  <Button onClick={() => createCategory.mutate()} disabled={createCategory.isPending}>
+                    <Plus className='mr-2 size-4' /> Add section
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className='text-base'>Import YouTube playlist</CardTitle>
+                  <CardDescription>
+                    Creates a course and pulls all public videos. Optional YOUTUBE_API_KEY on the API for large playlists.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className='space-y-3'>
+                  {sectionSelect}
+                  <Input
+                    placeholder='Playlist URL (youtube.com/playlist?list=PL…)'
+                    value={playlistForm.playlistUrl}
+                    onChange={(e) => setPlaylistForm({ ...playlistForm, playlistUrl: e.target.value })}
+                  />
+                  <div className='grid gap-3 sm:grid-cols-2'>
+                    <Input placeholder='Course title AR (optional)' value={playlistForm.titleAr} onChange={(e) => setPlaylistForm({ ...playlistForm, titleAr: e.target.value })} />
+                    <Input placeholder='Course title EN (optional)' value={playlistForm.titleEn} onChange={(e) => setPlaylistForm({ ...playlistForm, titleEn: e.target.value })} />
+                  </div>
+                  <div className='flex flex-wrap items-center gap-4'>
+                    <div className='flex items-center gap-2'>
+                      <Switch checked={playlistForm.isPublished} onCheckedChange={(v) => setPlaylistForm({ ...playlistForm, isPublished: v })} />
+                      <Label>Published</Label>
+                    </div>
+                    <div className='flex items-center gap-2'>
+                      <Switch checked={playlistForm.replaceExisting} onCheckedChange={(v) => setPlaylistForm({ ...playlistForm, replaceExisting: v })} />
+                      <Label>Replace when re-importing</Label>
+                    </div>
+                  </div>
+                  <Button onClick={() => importPlaylist.mutate()} disabled={importPlaylist.isPending || !selectedCategory || !playlistForm.playlistUrl.trim()}>
+                    <ListVideo className='mr-2 size-4' /> Import playlist
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className='text-base'>Manual course</CardTitle>
+                  <CardDescription>Empty course — add videos one by one below.</CardDescription>
+                </CardHeader>
+                <CardContent className='space-y-3'>
+                  {sectionSelect}
+                  <div className='grid gap-3 sm:grid-cols-2'>
+                    <Input placeholder='Title AR' value={courseForm.titleAr} onChange={(e) => setCourseForm({ ...courseForm, titleAr: e.target.value })} />
+                    <Input placeholder='Title EN' value={courseForm.titleEn} onChange={(e) => setCourseForm({ ...courseForm, titleEn: e.target.value })} />
+                  </div>
+                  <Button onClick={() => createCourse.mutate()} disabled={createCourse.isPending || !selectedCategory}>
+                    <Plus className='mr-2 size-4' /> Add course
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className='text-base'>Single video</CardTitle>
+                  <CardDescription>Standalone in the section, or attach to a course.</CardDescription>
+                </CardHeader>
+                <CardContent className='space-y-3'>
+                  {sectionSelect}
+                  <div>
+                    <Label>Course (optional — leave empty for standalone)</Label>
+                    <select
+                      className='mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm'
+                      value={lessonForm.courseId}
+                      onChange={(e) => setLessonForm({ ...lessonForm, courseId: e.target.value })}
+                    >
+                      <option value=''>Standalone video</option>
+                      {(selectedCategory?.courses ?? []).map((course) => (
+                        <option key={course.id} value={course.id}>
+                          {course.titleEn}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className='grid gap-3 sm:grid-cols-2'>
+                    <Input placeholder='Title AR' value={lessonForm.titleAr} onChange={(e) => setLessonForm({ ...lessonForm, titleAr: e.target.value })} />
+                    <Input placeholder='Title EN' value={lessonForm.titleEn} onChange={(e) => setLessonForm({ ...lessonForm, titleEn: e.target.value })} />
+                  </div>
+                  <Input placeholder='YouTube URL or video ID' value={lessonForm.youtubeVideoId} onChange={(e) => setLessonForm({ ...lessonForm, youtubeVideoId: e.target.value })} />
+                  <Button onClick={() => createLesson.mutate()} disabled={createLesson.isPending || !selectedCategory}>
+                    <Plus className='mr-2 size-4' /> Add video
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader><CardTitle className='text-base'>Sections, courses & videos</CardTitle></CardHeader>
+              <CardContent className='space-y-4'>
+                {categories.map((cat) => (
+                  <div key={cat.id} className='rounded-lg border p-3'>
+                    <div className='mb-2 flex items-center justify-between'>
+                      <div>
+                        <div className='font-medium'>{cat.titleEn}</div>
+                        <div className='text-sm text-muted-foreground' dir='rtl'>{cat.titleAr}</div>
+                      </div>
+                      <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'category', id: cat.id, label: cat.titleEn })}>
+                        <Trash2 className='size-4' />
+                      </Button>
+                    </div>
+
+                    {cat.standaloneLessons.length > 0 ? (
+                      <div className='mb-3'>
+                        <div className='mb-1 text-xs font-medium uppercase text-muted-foreground'>Standalone videos</div>
+                        <ul className='space-y-1 text-sm'>
+                          {cat.standaloneLessons.map((lesson) => (
+                            <li key={lesson.id} className='flex items-center justify-between gap-2'>
+                              <span>{lesson.titleEn}</span>
+                              <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'lesson', id: lesson.id, label: lesson.titleEn })}>
+                                <Trash2 className='size-3' />
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+
+                    {cat.courses.map((course) => (
+                      <div key={course.id} className='mb-3 rounded-md bg-muted/40 p-2'>
+                        <div className='mb-1 flex items-center justify-between gap-2'>
+                          <div>
+                            <div className='text-sm font-medium'>{course.titleEn}</div>
+                            {course.youtubePlaylistId ? (
+                              <div className='text-xs text-muted-foreground'>Playlist: {course.youtubePlaylistId}</div>
+                            ) : null}
+                          </div>
+                          <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'course', id: course.id, label: course.titleEn })}>
+                            <Trash2 className='size-3' />
+                          </Button>
+                        </div>
+                        <ul className='space-y-1 text-sm'>
+                          {course.lessons.map((lesson) => (
+                            <li key={lesson.id} className='flex items-center justify-between gap-2 pl-2'>
+                              <span>{lesson.titleEn}</span>
+                              <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'lesson', id: lesson.id, label: lesson.titleEn })}>
+                                <Trash2 className='size-3' />
+                              </Button>
+                            </li>
+                          ))}
+                          {course.lessons.length === 0 ? (
+                            <li className='pl-2 text-muted-foreground'>No videos yet</li>
+                          ) : null}
+                        </ul>
+                      </div>
+                    ))}
+
+                    {cat.standaloneLessons.length === 0 && cat.courses.length === 0 ? (
+                      <p className='text-sm text-muted-foreground'>No courses or videos yet</p>
+                    ) : null}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
+      </Main>
+
+      <ConfirmDialog
+        open={deleteTarget != null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        title='Delete item?'
+        desc={deleteTarget ? `Remove "${deleteTarget.label}"?` : ''}
+        confirmText='Delete'
+        destructive
+        isLoading={deleteMutation.isPending}
+        handleConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget) }}
+      />
+    </>
+  )
+}

@@ -3,6 +3,7 @@ import { SessionState } from '@prisma/client';
 import {
   egxPollIntervalSec,
   getEgxSessionState,
+  isEgxWeekend,
   shouldPollEgxEquities,
 } from '../../src/services/session-egx.js';
 
@@ -31,6 +32,13 @@ describe('shouldPollEgxEquities', () => {
   it('polls during Cairo trading week sessions', () => {
     expect(shouldPollEgxEquities(CAIRO_OPEN)).toBe(true);
     expect(shouldPollEgxEquities(CAIRO_FRIDAY)).toBe(false);
+  });
+});
+
+describe('isEgxWeekend', () => {
+  it('treats Friday and Saturday as weekend', () => {
+    expect(isEgxWeekend(CAIRO_FRIDAY)).toBe(true);
+    expect(isEgxWeekend(CAIRO_OPEN)).toBe(false);
   });
 });
 

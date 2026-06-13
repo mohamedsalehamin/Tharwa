@@ -190,6 +190,8 @@ const envSchema = z.object({
         .filter(Boolean);
       return ids.length > 0 ? ids : ['com.tharwaapp'];
     }),
+  /** Optional YouTube Data API key — enables full playlist import (RSS fallback when unset). */
+  YOUTUBE_API_KEY: z.string().min(10).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -11,7 +11,11 @@ export function isPublicMarketReadPath(method: string, url: string): boolean {
     path === '/v1/fx/rates' ||
     path === '/v1/metals' ||
     path === '/v1/market/summary' ||
-    path === '/v1/announcements'
+    path === '/v1/announcements' ||
+    path === '/v1/learn/glossary' ||
+    path === '/v1/learn/articles' ||
+    path.startsWith('/v1/learn/articles/') ||
+    path === '/v1/learn/courses'
   ) {
     return true;
   }

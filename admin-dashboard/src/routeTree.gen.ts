@@ -19,7 +19,9 @@ import { Route as errors401RouteImport } from './routes/(errors)/401'
 import { Route as authSignInRouteImport } from './routes/(auth)/sign-in'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedPushIndexRouteImport } from './routes/_authenticated/push/index'
+import { Route as AuthenticatedLearnIndexRouteImport } from './routes/_authenticated/learn/index'
 import { Route as AuthenticatedInstrumentsIndexRouteImport } from './routes/_authenticated/instruments/index'
+import { Route as AuthenticatedEgxHolidaysIndexRouteImport } from './routes/_authenticated/egx-holidays/index'
 import { Route as AuthenticatedContactIndexRouteImport } from './routes/_authenticated/contact/index'
 import { Route as AuthenticatedAnnouncementsIndexRouteImport } from './routes/_authenticated/announcements/index'
 import { Route as AuthenticatedActivityIndexRouteImport } from './routes/_authenticated/activity/index'
@@ -76,10 +78,21 @@ const AuthenticatedPushIndexRoute = AuthenticatedPushIndexRouteImport.update({
   path: '/push/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedLearnIndexRoute = AuthenticatedLearnIndexRouteImport.update({
+  id: '/learn/',
+  path: '/learn/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedInstrumentsIndexRoute =
   AuthenticatedInstrumentsIndexRouteImport.update({
     id: '/instruments/',
     path: '/instruments/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEgxHolidaysIndexRoute =
+  AuthenticatedEgxHolidaysIndexRouteImport.update({
+    id: '/egx-holidays/',
+    path: '/egx-holidays/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedContactIndexRoute =
@@ -131,7 +144,9 @@ export interface FileRoutesByFullPath {
   '/activity/': typeof AuthenticatedActivityIndexRoute
   '/announcements/': typeof AuthenticatedAnnouncementsIndexRoute
   '/contact/': typeof AuthenticatedContactIndexRoute
+  '/egx-holidays/': typeof AuthenticatedEgxHolidaysIndexRoute
   '/instruments/': typeof AuthenticatedInstrumentsIndexRoute
+  '/learn/': typeof AuthenticatedLearnIndexRoute
   '/push/': typeof AuthenticatedPushIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/website/navigation/': typeof AuthenticatedWebsiteNavigationIndexRoute
@@ -149,7 +164,9 @@ export interface FileRoutesByTo {
   '/activity': typeof AuthenticatedActivityIndexRoute
   '/announcements': typeof AuthenticatedAnnouncementsIndexRoute
   '/contact': typeof AuthenticatedContactIndexRoute
+  '/egx-holidays': typeof AuthenticatedEgxHolidaysIndexRoute
   '/instruments': typeof AuthenticatedInstrumentsIndexRoute
+  '/learn': typeof AuthenticatedLearnIndexRoute
   '/push': typeof AuthenticatedPushIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
   '/website/navigation': typeof AuthenticatedWebsiteNavigationIndexRoute
@@ -169,7 +186,9 @@ export interface FileRoutesById {
   '/_authenticated/activity/': typeof AuthenticatedActivityIndexRoute
   '/_authenticated/announcements/': typeof AuthenticatedAnnouncementsIndexRoute
   '/_authenticated/contact/': typeof AuthenticatedContactIndexRoute
+  '/_authenticated/egx-holidays/': typeof AuthenticatedEgxHolidaysIndexRoute
   '/_authenticated/instruments/': typeof AuthenticatedInstrumentsIndexRoute
+  '/_authenticated/learn/': typeof AuthenticatedLearnIndexRoute
   '/_authenticated/push/': typeof AuthenticatedPushIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_authenticated/website/navigation/': typeof AuthenticatedWebsiteNavigationIndexRoute
@@ -189,7 +208,9 @@ export interface FileRouteTypes {
     | '/activity/'
     | '/announcements/'
     | '/contact/'
+    | '/egx-holidays/'
     | '/instruments/'
+    | '/learn/'
     | '/push/'
     | '/users/'
     | '/website/navigation/'
@@ -207,7 +228,9 @@ export interface FileRouteTypes {
     | '/activity'
     | '/announcements'
     | '/contact'
+    | '/egx-holidays'
     | '/instruments'
+    | '/learn'
     | '/push'
     | '/users'
     | '/website/navigation'
@@ -226,7 +249,9 @@ export interface FileRouteTypes {
     | '/_authenticated/activity/'
     | '/_authenticated/announcements/'
     | '/_authenticated/contact/'
+    | '/_authenticated/egx-holidays/'
     | '/_authenticated/instruments/'
+    | '/_authenticated/learn/'
     | '/_authenticated/push/'
     | '/_authenticated/users/'
     | '/_authenticated/website/navigation/'
@@ -315,11 +340,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPushIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/learn/': {
+      id: '/_authenticated/learn/'
+      path: '/learn'
+      fullPath: '/learn/'
+      preLoaderRoute: typeof AuthenticatedLearnIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/instruments/': {
       id: '/_authenticated/instruments/'
       path: '/instruments'
       fullPath: '/instruments/'
       preLoaderRoute: typeof AuthenticatedInstrumentsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/egx-holidays/': {
+      id: '/_authenticated/egx-holidays/'
+      path: '/egx-holidays'
+      fullPath: '/egx-holidays/'
+      preLoaderRoute: typeof AuthenticatedEgxHolidaysIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/contact/': {
@@ -373,7 +412,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedActivityIndexRoute: typeof AuthenticatedActivityIndexRoute
   AuthenticatedAnnouncementsIndexRoute: typeof AuthenticatedAnnouncementsIndexRoute
   AuthenticatedContactIndexRoute: typeof AuthenticatedContactIndexRoute
+  AuthenticatedEgxHolidaysIndexRoute: typeof AuthenticatedEgxHolidaysIndexRoute
   AuthenticatedInstrumentsIndexRoute: typeof AuthenticatedInstrumentsIndexRoute
+  AuthenticatedLearnIndexRoute: typeof AuthenticatedLearnIndexRoute
   AuthenticatedPushIndexRoute: typeof AuthenticatedPushIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
   AuthenticatedWebsiteNavigationIndexRoute: typeof AuthenticatedWebsiteNavigationIndexRoute
@@ -387,7 +428,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedActivityIndexRoute: AuthenticatedActivityIndexRoute,
   AuthenticatedAnnouncementsIndexRoute: AuthenticatedAnnouncementsIndexRoute,
   AuthenticatedContactIndexRoute: AuthenticatedContactIndexRoute,
+  AuthenticatedEgxHolidaysIndexRoute: AuthenticatedEgxHolidaysIndexRoute,
   AuthenticatedInstrumentsIndexRoute: AuthenticatedInstrumentsIndexRoute,
+  AuthenticatedLearnIndexRoute: AuthenticatedLearnIndexRoute,
   AuthenticatedPushIndexRoute: AuthenticatedPushIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
   AuthenticatedWebsiteNavigationIndexRoute:

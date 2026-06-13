@@ -1,7 +1,8 @@
 import { SessionState } from '@prisma/client';
 
 /** EGX regular session (cash equities), Africa/Cairo — indicative windows for MVP. */
-const OPEN_DOW = new Set([0, 1, 2, 3, 4]); // Sun–Thu
+export const EGX_TRADING_WEEKDAYS = new Set([0, 1, 2, 3, 4]); // Sun–Thu
+const OPEN_DOW = EGX_TRADING_WEEKDAYS;
 const OPEN_MIN = 10 * 60; // 10:00
 const CLOSE_MIN = 14 * 60 + 30; // 14:30
 
@@ -16,7 +17,7 @@ function cairoMinutesSinceMidnight(d: Date): number {
   return hh * 60 + mm;
 }
 
-function cairoWeekday(d: Date): number {
+export function cairoWeekday(d: Date): number {
   // weekday: short -> map; use formatToParts
   const w = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Africa/Cairo',
@@ -32,6 +33,11 @@ function cairoWeekday(d: Date): number {
     Sat: 6,
   };
   return map[w] ?? 6;
+}
+
+/** Friday and Saturday in Africa/Cairo — EGX weekend. */
+export function isEgxWeekend(now: Date = new Date()): boolean {
+  return !EGX_TRADING_WEEKDAYS.has(cairoWeekday(now));
 }
 
 /** Session hint for EGX-listed instruments (not exchange-official). */

@@ -34,6 +34,9 @@ import { adminAnnouncementsRoutes } from './routes/admin/announcements.js';
 import { adminContactSubmissionsRoutes } from './routes/admin/contact-submissions.js';
 import { adminSiteRoutes } from './routes/admin/site.js';
 import { adminInflationBenchmarkRoutes } from './routes/admin/inflation-benchmark.js';
+import { adminEgxHolidaysRoutes } from './routes/admin/egx-holidays.js';
+import { adminLearnRoutes } from './routes/admin/learn.js';
+import { v1LearnRoutes } from './routes/v1/learn.js';
 import { v1SiteRoutes } from './routes/v1/site.js';
 
 export async function buildApp(env: Env, ctx: AppCtx) {
@@ -81,6 +84,7 @@ export async function buildApp(env: Env, ctx: AppCtx) {
   await app.register(v1PushRoutes, { prefix: '/v1' });
   await app.register(v1NotificationsRoutes, { prefix: '/v1' });
   await app.register(v1AnnouncementsRoutes, { prefix: '/v1' });
+  await app.register(v1LearnRoutes, { prefix: '/v1' });
   await app.register(v1ContactRoutes, { prefix: '/v1' });
   await app.register(v1SiteRoutes, { prefix: '/v1' });
   await app.register(v1ZakatRoutes, { prefix: '/v1' });
@@ -90,6 +94,8 @@ export async function buildApp(env: Env, ctx: AppCtx) {
   await app.register(adminContactSubmissionsRoutes, { prefix: '/admin/v1' });
   await app.register(adminSiteRoutes, { prefix: '/admin/v1' });
   await app.register(adminInflationBenchmarkRoutes, { prefix: '/admin/v1' });
+  await app.register(adminEgxHolidaysRoutes, { prefix: '/admin/v1' });
+  await app.register(adminLearnRoutes, { prefix: '/admin/v1' });
 
   return app;
 }

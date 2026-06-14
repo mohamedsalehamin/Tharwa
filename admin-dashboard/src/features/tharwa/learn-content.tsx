@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, GraduationCap, Library, ListVideo, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { BookOpen, GraduationCap, GripVertical, Library, ListVideo, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { adminFetch } from '@/lib/admin-api'
 import { useAuthStore } from '@/stores/auth-store'
 import { Header } from '@/components/layout/header'
@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
 type Tab = 'glossary' | 'articles' | 'courses'
@@ -171,6 +172,11 @@ export function LearnContentPanel() {
   const [lessonForm, setLessonForm] = useState(EMPTY_LESSON)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ kind: string; id: string; label: string } | null>(null)
+  const [categoryOrder, setCategoryOrder] = useState<string[]>([])
+  const [draggingCategoryId, setDraggingCategoryId] = useState<string | null>(null)
+  const [dropTargetCategoryId, setDropTargetCategoryId] = useState<string | null>(null)
+  const [editingGlossaryCategoryId, setEditingGlossaryCategoryId] = useState<string | null>(null)
+  const [editingGlossaryTermId, setEditingGlossaryTermId] = useState<string | null>(null)
 
   const glossaryQuery = useQuery({
     queryKey: ['admin', 'learn', 'glossary'],
@@ -212,6 +218,28 @@ export function LearnContentPanel() {
     onError: (e: Error) => toast.error(e.message),
   })
 
+  const updateGlossaryCategory = useMutation({
+    mutationFn: () => {
+      if (!editingGlossaryCategoryId) throw new Error('No category selected')
+      return adminFetch(`/admin/v1/learn/glossary/categories/${editingGlossaryCategoryId}`, token!, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titleAr: glossaryCategoryForm.titleAr.trim(),
+          titleEn: glossaryCategoryForm.titleEn.trim(),
+          isPublished: glossaryCategoryForm.isPublished,
+        }),
+      })
+    },
+    onSuccess: () => {
+      toast.success('Glossary category updated')
+      setEditingGlossaryCategoryId(null)
+      setGlossaryCategoryForm(EMPTY_GLOSSARY_CATEGORY)
+      invalidate()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
   const createGlossary = useMutation({
     mutationFn: () => {
       if (!selectedGlossaryCategoryId) throw new Error('Select a category first')
@@ -226,6 +254,33 @@ export function LearnContentPanel() {
     },
     onSuccess: () => {
       toast.success('Term added')
+      setGlossaryForm(EMPTY_GLOSSARY)
+      invalidate()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const updateGlossary = useMutation({
+    mutationFn: () => {
+      if (!editingGlossaryTermId) throw new Error('No term selected')
+      const categoryId = selectedGlossaryCategoryId ?? glossaryCategories[0]?.id
+      if (!categoryId) throw new Error('Select a category first')
+      return adminFetch(`/admin/v1/learn/glossary/${editingGlossaryTermId}`, token!, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          categoryId,
+          termAr: glossaryForm.termAr.trim(),
+          termEn: glossaryForm.termEn.trim(),
+          definitionAr: glossaryForm.definitionAr.trim(),
+          definitionEn: glossaryForm.definitionEn.trim(),
+          isPublished: glossaryForm.isPublished,
+        }),
+      })
+    },
+    onSuccess: () => {
+      toast.success('Term updated')
+      setEditingGlossaryTermId(null)
       setGlossaryForm(EMPTY_GLOSSARY)
       invalidate()
     },
@@ -340,6 +395,25 @@ export function LearnContentPanel() {
     onError: (e: Error) => toast.error(e.message),
   })
 
+  const reorderGlossaryCategories = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      await Promise.all(
+        orderedIds.map((id, index) =>
+          adminFetch(`/admin/v1/learn/glossary/categories/${id}`, token!, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sortOrder: index }),
+          }),
+        ),
+      )
+    },
+    onSuccess: () => {
+      toast.success('Category order updated')
+      invalidate()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
   const deleteMutation = useMutation({
     mutationFn: async (target: { kind: string; id: string }) => {
       const paths: Record<string, string> = {
@@ -352,19 +426,130 @@ export function LearnContentPanel() {
       }
       await adminFetch(paths[target.kind]!, token!, { method: 'DELETE' })
     },
-    onSuccess: () => {
+    onSuccess: (_data, target) => {
       toast.success('Deleted')
       setDeleteTarget(null)
+      if (target.kind === 'glossaryCategory') {
+        setEditingGlossaryCategoryId((prev) => {
+          if (prev === target.id) {
+            setGlossaryCategoryForm(EMPTY_GLOSSARY_CATEGORY)
+            return null
+          }
+          return prev
+        })
+      }
+      if (target.kind === 'glossary') {
+        setEditingGlossaryTermId((prev) => {
+          if (prev === target.id) {
+            setGlossaryForm(EMPTY_GLOSSARY)
+            return null
+          }
+          return prev
+        })
+      }
       invalidate()
     },
     onError: (e: Error) => toast.error(e.message),
   })
 
   const glossaryCategories = glossaryQuery.data?.categories ?? []
+  const sortedGlossaryCategories = useMemo(
+    () =>
+      [...glossaryCategories].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.titleEn.localeCompare(b.titleEn),
+      ),
+    [glossaryCategories],
+  )
+
+  useEffect(() => {
+    setCategoryOrder(sortedGlossaryCategories.map((c) => c.id))
+  }, [sortedGlossaryCategories])
+
+  const orderedGlossaryCategories = useMemo(
+    () =>
+      categoryOrder
+        .map((id) => sortedGlossaryCategories.find((c) => c.id === id))
+        .filter((c): c is GlossaryCategoryItem => c != null),
+    [categoryOrder, sortedGlossaryCategories],
+  )
+
+  const handleCategoryDragStart = (categoryId: string) => {
+    setDraggingCategoryId(categoryId)
+  }
+
+  const handleCategoryDragOver = (event: React.DragEvent, categoryId: string) => {
+    event.preventDefault()
+    if (draggingCategoryId && draggingCategoryId !== categoryId) {
+      setDropTargetCategoryId(categoryId)
+    }
+  }
+
+  const handleCategoryDrop = (targetId: string) => {
+    if (!draggingCategoryId || draggingCategoryId === targetId) {
+      setDraggingCategoryId(null)
+      setDropTargetCategoryId(null)
+      return
+    }
+
+    const next = [...categoryOrder]
+    const fromIdx = next.indexOf(draggingCategoryId)
+    const toIdx = next.indexOf(targetId)
+    if (fromIdx === -1 || toIdx === -1) {
+      setDraggingCategoryId(null)
+      setDropTargetCategoryId(null)
+      return
+    }
+
+    next.splice(fromIdx, 1)
+    next.splice(toIdx, 0, draggingCategoryId)
+    setCategoryOrder(next)
+    setDraggingCategoryId(null)
+    setDropTargetCategoryId(null)
+    reorderGlossaryCategories.mutate(next)
+  }
+
+  const startEditGlossaryCategory = (cat: GlossaryCategoryItem) => {
+    setEditingGlossaryCategoryId(cat.id)
+    setGlossaryCategoryForm({
+      titleAr: cat.titleAr,
+      titleEn: cat.titleEn,
+      sortOrder: String(cat.sortOrder),
+      isPublished: cat.isPublished,
+    })
+  }
+
+  const cancelEditGlossaryCategory = () => {
+    setEditingGlossaryCategoryId(null)
+    setGlossaryCategoryForm(EMPTY_GLOSSARY_CATEGORY)
+  }
+
+  const startEditGlossaryTerm = (row: GlossaryTermItem) => {
+    setEditingGlossaryTermId(row.id)
+    setSelectedGlossaryCategoryId(row.categoryId)
+    setGlossaryForm({
+      termAr: row.termAr,
+      termEn: row.termEn,
+      definitionAr: row.definitionAr,
+      definitionEn: row.definitionEn,
+      sortOrder: String(row.sortOrder),
+      isPublished: row.isPublished,
+    })
+  }
+
+  const cancelEditGlossaryTerm = () => {
+    setEditingGlossaryTermId(null)
+    setGlossaryForm(EMPTY_GLOSSARY)
+  }
+
   const selectedGlossaryCategory = useMemo(
     () => glossaryCategories.find((c) => c.id === selectedGlossaryCategoryId) ?? glossaryCategories[0] ?? null,
     [glossaryCategories, selectedGlossaryCategoryId],
   )
+
+  const glossaryFormValid =
+    Boolean(selectedGlossaryCategory) &&
+    glossaryForm.termAr.trim().length > 0 &&
+    glossaryForm.termEn.trim().length > 0
 
   const glossaryCategorySelect = (
     <div>
@@ -455,7 +640,9 @@ export function LearnContentPanel() {
             <div className='grid gap-4 lg:grid-cols-2'>
               <Card>
                 <CardHeader>
-                  <CardTitle className='text-base'>Add category</CardTitle>
+                  <CardTitle className='text-base'>
+                    {editingGlossaryCategoryId ? 'Edit category' : 'Add category'}
+                  </CardTitle>
                   <CardDescription>Tabs shown in the mobile glossary screen.</CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-3'>
@@ -473,14 +660,35 @@ export function LearnContentPanel() {
                     <Switch checked={glossaryCategoryForm.isPublished} onCheckedChange={(v) => setGlossaryCategoryForm({ ...glossaryCategoryForm, isPublished: v })} />
                     <Label>Published</Label>
                   </div>
-                  <Button onClick={() => createGlossaryCategory.mutate()} disabled={createGlossaryCategory.isPending}>
-                    <Plus className='mr-2 size-4' /> Add category
-                  </Button>
+                  <div className='flex flex-wrap gap-2'>
+                    {editingGlossaryCategoryId ? (
+                      <Button
+                        onClick={() => updateGlossaryCategory.mutate()}
+                        disabled={updateGlossaryCategory.isPending || !glossaryCategoryForm.titleAr.trim() || !glossaryCategoryForm.titleEn.trim()}
+                      >
+                        Save changes
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => createGlossaryCategory.mutate()}
+                        disabled={createGlossaryCategory.isPending || !glossaryCategoryForm.titleAr.trim() || !glossaryCategoryForm.titleEn.trim()}
+                      >
+                        <Plus className='mr-2 size-4' /> Add category
+                      </Button>
+                    )}
+                    {editingGlossaryCategoryId ? (
+                      <Button variant='outline' onClick={cancelEditGlossaryCategory} disabled={updateGlossaryCategory.isPending}>
+                        Cancel
+                      </Button>
+                    ) : null}
+                  </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className={cn(editingGlossaryTermId && 'ring-2 ring-primary/60')}>
                 <CardHeader>
-                  <CardTitle className='text-base'>Add term</CardTitle>
+                  <CardTitle className='text-base'>
+                    {editingGlossaryTermId ? 'Edit term' : 'Add term'}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className='space-y-3'>
                   {glossaryCategorySelect}
@@ -516,23 +724,83 @@ export function LearnContentPanel() {
                     <Switch checked={glossaryForm.isPublished} onCheckedChange={(v) => setGlossaryForm({ ...glossaryForm, isPublished: v })} />
                     <Label>Published</Label>
                   </div>
-                  <Button onClick={() => createGlossary.mutate()} disabled={createGlossary.isPending || !selectedGlossaryCategory}>
-                    <Plus className='mr-2 size-4' /> Add term
-                  </Button>
+                  <div className='flex flex-wrap gap-2'>
+                    {editingGlossaryTermId ? (
+                      <Button
+                        onClick={() => updateGlossary.mutate()}
+                        disabled={updateGlossary.isPending || !glossaryFormValid}
+                      >
+                        Save changes
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => createGlossary.mutate()}
+                        disabled={createGlossary.isPending || !glossaryFormValid}
+                      >
+                        <Plus className='mr-2 size-4' /> Add term
+                      </Button>
+                    )}
+                    {editingGlossaryTermId ? (
+                      <Button variant='outline' onClick={cancelEditGlossaryTerm} disabled={updateGlossary.isPending}>
+                        Cancel
+                      </Button>
+                    ) : null}
+                  </div>
                 </CardContent>
               </Card>
             </div>
-            {glossaryCategories.map((cat) => (
-              <Card key={cat.id}>
+            {orderedGlossaryCategories.length > 1 ? (
+              <p className='text-sm text-muted-foreground'>
+                Drag categories to change their order in the mobile glossary tabs.
+              </p>
+            ) : null}
+            {orderedGlossaryCategories.map((cat) => (
+              <Card
+                key={cat.id}
+                className={cn(
+                  'transition-shadow',
+                  draggingCategoryId === cat.id && 'opacity-50',
+                  dropTargetCategoryId === cat.id && 'ring-2 ring-primary',
+                  editingGlossaryCategoryId === cat.id && 'ring-2 ring-primary/60',
+                )}
+                onDragOver={(event) => handleCategoryDragOver(event, cat.id)}
+                onDragLeave={() => {
+                  if (dropTargetCategoryId === cat.id) setDropTargetCategoryId(null)
+                }}
+                onDrop={() => handleCategoryDrop(cat.id)}
+              >
                 <CardHeader className='flex flex-row items-start justify-between gap-4'>
-                  <div>
-                    <CardTitle className='text-base'>{cat.titleEn}</CardTitle>
-                    <CardDescription dir='rtl'>{cat.titleAr}</CardDescription>
+                  <div className='flex min-w-0 flex-1 items-start gap-3'>
+                    <button
+                      type='button'
+                      draggable
+                      aria-label={`Reorder ${cat.titleEn}`}
+                      className='mt-0.5 cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing'
+                      onDragStart={() => handleCategoryDragStart(cat.id)}
+                      onDragEnd={() => {
+                        setDraggingCategoryId(null)
+                        setDropTargetCategoryId(null)
+                      }}
+                    >
+                      <GripVertical className='size-4' />
+                    </button>
+                    <div className='min-w-0'>
+                      <CardTitle className='text-base'>{cat.titleEn}</CardTitle>
+                      <CardDescription dir='rtl'>{cat.titleAr}</CardDescription>
+                    </div>
                   </div>
                   <div className='flex items-center gap-2'>
                     <Badge variant={cat.isPublished ? 'secondary' : 'outline'}>
                       {cat.isPublished ? 'Live' : 'Draft'}
                     </Badge>
+                    <Button
+                      variant='ghost'
+                      size='icon'
+                      aria-label={`Edit ${cat.titleEn}`}
+                      onClick={() => startEditGlossaryCategory(cat)}
+                    >
+                      <Pencil className='size-4' />
+                    </Button>
                     <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'glossaryCategory', id: cat.id, label: cat.titleEn })}>
                       <Trash2 className='size-4' />
                     </Button>
@@ -555,24 +823,39 @@ export function LearnContentPanel() {
                           </TableCell>
                         </TableRow>
                       ) : null}
-                      {cat.terms.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell>
-                            <div>{row.termEn}</div>
-                            <div className='text-sm text-muted-foreground' dir='rtl'>{row.termAr}</div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={row.isPublished ? 'secondary' : 'outline'}>
-                              {row.isPublished ? 'Live' : 'Draft'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'glossary', id: row.id, label: row.termEn })}>
-                              <Trash2 className='size-4' />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {[...cat.terms]
+                        .sort((a, b) => a.sortOrder - b.sortOrder || a.termEn.localeCompare(b.termEn))
+                        .map((row) => (
+                          <TableRow
+                            key={row.id}
+                            className={cn(editingGlossaryTermId === row.id && 'bg-muted/40')}
+                          >
+                            <TableCell>
+                              <div>{row.termEn}</div>
+                              <div className='text-sm text-muted-foreground' dir='rtl'>{row.termAr}</div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={row.isPublished ? 'secondary' : 'outline'}>
+                                {row.isPublished ? 'Live' : 'Draft'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className='flex justify-end gap-1'>
+                                <Button
+                                  variant='ghost'
+                                  size='icon'
+                                  aria-label={`Edit ${row.termEn}`}
+                                  onClick={() => startEditGlossaryTerm(row)}
+                                >
+                                  <Pencil className='size-4' />
+                                </Button>
+                                <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'glossary', id: row.id, label: row.termEn })}>
+                                  <Trash2 className='size-4' />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
                     </TableBody>
                   </Table>
                 </CardContent>

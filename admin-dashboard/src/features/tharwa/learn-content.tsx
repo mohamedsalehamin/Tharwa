@@ -158,6 +158,12 @@ const EMPTY_LESSON = {
   isPublished: true,
 }
 
+const EMPTY_GLOSSARY_CATEGORIES: GlossaryCategoryItem[] = []
+
+function sameIdOrder(a: string[], b: string[]) {
+  return a.length === b.length && a.every((id, index) => id === b[index])
+}
+
 export function LearnContentPanel() {
   const token = useAuthStore((s) => s.auth.accessToken)
   const queryClient = useQueryClient()
@@ -452,7 +458,7 @@ export function LearnContentPanel() {
     onError: (e: Error) => toast.error(e.message),
   })
 
-  const glossaryCategories = glossaryQuery.data?.categories ?? []
+  const glossaryCategories = glossaryQuery.data?.categories ?? EMPTY_GLOSSARY_CATEGORIES
   const sortedGlossaryCategories = useMemo(
     () =>
       [...glossaryCategories].sort(
@@ -462,7 +468,8 @@ export function LearnContentPanel() {
   )
 
   useEffect(() => {
-    setCategoryOrder(sortedGlossaryCategories.map((c) => c.id))
+    const nextOrder = sortedGlossaryCategories.map((c) => c.id)
+    setCategoryOrder((prev) => (sameIdOrder(prev, nextOrder) ? prev : nextOrder))
   }, [sortedGlossaryCategories])
 
   const orderedGlossaryCategories = useMemo(

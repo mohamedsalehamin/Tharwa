@@ -183,6 +183,8 @@ export function LearnContentPanel() {
   const [dropTargetCategoryId, setDropTargetCategoryId] = useState<string | null>(null)
   const [editingGlossaryCategoryId, setEditingGlossaryCategoryId] = useState<string | null>(null)
   const [editingGlossaryTermId, setEditingGlossaryTermId] = useState<string | null>(null)
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
+  const [editingCourseId, setEditingCourseId] = useState<string | null>(null)
 
   const glossaryQuery = useQuery({
     queryKey: ['admin', 'learn', 'glossary'],
@@ -333,6 +335,30 @@ export function LearnContentPanel() {
     onError: (e: Error) => toast.error(e.message),
   })
 
+  const updateCategory = useMutation({
+    mutationFn: () => {
+      if (!editingCategoryId) throw new Error('No section selected')
+      return adminFetch(`/admin/v1/learn/courses/categories/${editingCategoryId}`, token!, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titleAr: categoryForm.titleAr.trim(),
+          titleEn: categoryForm.titleEn.trim(),
+          descriptionAr: categoryForm.descriptionAr.trim() || null,
+          descriptionEn: categoryForm.descriptionEn.trim() || null,
+          isPublished: categoryForm.isPublished,
+        }),
+      })
+    },
+    onSuccess: () => {
+      toast.success('Section updated')
+      setEditingCategoryId(null)
+      setCategoryForm(EMPTY_CATEGORY)
+      invalidate()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
   const createCourse = useMutation({
     mutationFn: () => {
       if (!selectedCategoryId) throw new Error('Select a section first')
@@ -347,6 +373,28 @@ export function LearnContentPanel() {
     },
     onSuccess: () => {
       toast.success('Course created')
+      setCourseForm(EMPTY_COURSE)
+      invalidate()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const updateCourse = useMutation({
+    mutationFn: () => {
+      if (!editingCourseId) throw new Error('No course selected')
+      return adminFetch(`/admin/v1/learn/courses/courses/${editingCourseId}`, token!, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titleAr: courseForm.titleAr.trim(),
+          titleEn: courseForm.titleEn.trim(),
+          isPublished: courseForm.isPublished,
+        }),
+      })
+    },
+    onSuccess: () => {
+      toast.success('Course updated')
+      setEditingCourseId(null)
       setCourseForm(EMPTY_COURSE)
       invalidate()
     },
@@ -453,6 +501,24 @@ export function LearnContentPanel() {
           return prev
         })
       }
+      if (target.kind === 'category') {
+        setEditingCategoryId((prev) => {
+          if (prev === target.id) {
+            setCategoryForm(EMPTY_CATEGORY)
+            return null
+          }
+          return prev
+        })
+      }
+      if (target.kind === 'course') {
+        setEditingCourseId((prev) => {
+          if (prev === target.id) {
+            setCourseForm(EMPTY_COURSE)
+            return null
+          }
+          return prev
+        })
+      }
       invalidate()
     },
     onError: (e: Error) => toast.error(e.message),
@@ -548,6 +614,39 @@ export function LearnContentPanel() {
     setGlossaryForm(EMPTY_GLOSSARY)
   }
 
+  const startEditCategory = (cat: CategoryItem) => {
+    setEditingCategoryId(cat.id)
+    setCategoryForm({
+      titleAr: cat.titleAr,
+      titleEn: cat.titleEn,
+      descriptionAr: cat.descriptionAr ?? '',
+      descriptionEn: cat.descriptionEn ?? '',
+      sortOrder: String(cat.sortOrder),
+      isPublished: cat.isPublished,
+    })
+  }
+
+  const cancelEditCategory = () => {
+    setEditingCategoryId(null)
+    setCategoryForm(EMPTY_CATEGORY)
+  }
+
+  const startEditCourse = (course: CourseItem) => {
+    setEditingCourseId(course.id)
+    setSelectedCategoryId(course.categoryId)
+    setCourseForm({
+      titleAr: course.titleAr,
+      titleEn: course.titleEn,
+      sortOrder: String(course.sortOrder),
+      isPublished: course.isPublished,
+    })
+  }
+
+  const cancelEditCourse = () => {
+    setEditingCourseId(null)
+    setCourseForm(EMPTY_COURSE)
+  }
+
   const selectedGlossaryCategory = useMemo(
     () => glossaryCategories.find((c) => c.id === selectedGlossaryCategoryId) ?? glossaryCategories[0] ?? null,
     [glossaryCategories, selectedGlossaryCategoryId],
@@ -581,6 +680,14 @@ export function LearnContentPanel() {
     () => categories.find((c) => c.id === selectedCategoryId) ?? categories[0] ?? null,
     [categories, selectedCategoryId],
   )
+
+  const categoryFormValid =
+    categoryForm.titleAr.trim().length > 0 && categoryForm.titleEn.trim().length > 0
+
+  const courseFormValid =
+    Boolean(selectedCategory) &&
+    courseForm.titleAr.trim().length > 0 &&
+    courseForm.titleEn.trim().length > 0
 
   const sectionSelect = (
     <div>
@@ -962,19 +1069,50 @@ export function LearnContentPanel() {
         {tab === 'courses' ? (
           <div className='grid gap-4 lg:grid-cols-2'>
             <div className='space-y-4'>
-              <Card>
+              <Card className={cn(editingCategoryId && 'ring-2 ring-primary/60')}>
                 <CardHeader>
-                  <CardTitle className='text-base'>Section</CardTitle>
+                  <CardTitle className='text-base'>
+                    {editingCategoryId ? 'Edit section' : 'Add section'}
+                  </CardTitle>
                   <CardDescription>Top-level grouping (e.g. For beginners, Technical analysis).</CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-3'>
                   <div className='grid gap-3 sm:grid-cols-2'>
-                    <Input placeholder='Title AR' value={categoryForm.titleAr} onChange={(e) => setCategoryForm({ ...categoryForm, titleAr: e.target.value })} />
-                    <Input placeholder='Title EN' value={categoryForm.titleEn} onChange={(e) => setCategoryForm({ ...categoryForm, titleEn: e.target.value })} />
+                    <div>
+                      <Label>Title (AR)</Label>
+                      <Input value={categoryForm.titleAr} onChange={(e) => setCategoryForm({ ...categoryForm, titleAr: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Title (EN)</Label>
+                      <Input value={categoryForm.titleEn} onChange={(e) => setCategoryForm({ ...categoryForm, titleEn: e.target.value })} />
+                    </div>
                   </div>
-                  <Button onClick={() => createCategory.mutate()} disabled={createCategory.isPending}>
-                    <Plus className='mr-2 size-4' /> Add section
-                  </Button>
+                  <div className='flex items-center gap-2'>
+                    <Switch checked={categoryForm.isPublished} onCheckedChange={(v) => setCategoryForm({ ...categoryForm, isPublished: v })} />
+                    <Label>Published</Label>
+                  </div>
+                  <div className='flex flex-wrap gap-2'>
+                    {editingCategoryId ? (
+                      <Button
+                        onClick={() => updateCategory.mutate()}
+                        disabled={updateCategory.isPending || !categoryFormValid}
+                      >
+                        Save changes
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => createCategory.mutate()}
+                        disabled={createCategory.isPending || !categoryFormValid}
+                      >
+                        <Plus className='mr-2 size-4' /> Add section
+                      </Button>
+                    )}
+                    {editingCategoryId ? (
+                      <Button variant='outline' onClick={cancelEditCategory} disabled={updateCategory.isPending}>
+                        Cancel
+                      </Button>
+                    ) : null}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1012,20 +1150,53 @@ export function LearnContentPanel() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className={cn(editingCourseId && 'ring-2 ring-primary/60')}>
                 <CardHeader>
-                  <CardTitle className='text-base'>Manual course</CardTitle>
-                  <CardDescription>Empty course — add videos one by one below.</CardDescription>
+                  <CardTitle className='text-base'>
+                    {editingCourseId ? 'Edit course' : 'Manual course'}
+                  </CardTitle>
+                  <CardDescription>
+                    {editingCourseId ? 'Update course title and visibility.' : 'Empty course — add videos one by one below.'}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-3'>
-                  {sectionSelect}
+                  {editingCourseId ? null : sectionSelect}
                   <div className='grid gap-3 sm:grid-cols-2'>
-                    <Input placeholder='Title AR' value={courseForm.titleAr} onChange={(e) => setCourseForm({ ...courseForm, titleAr: e.target.value })} />
-                    <Input placeholder='Title EN' value={courseForm.titleEn} onChange={(e) => setCourseForm({ ...courseForm, titleEn: e.target.value })} />
+                    <div>
+                      <Label>Title (AR)</Label>
+                      <Input value={courseForm.titleAr} onChange={(e) => setCourseForm({ ...courseForm, titleAr: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Title (EN)</Label>
+                      <Input value={courseForm.titleEn} onChange={(e) => setCourseForm({ ...courseForm, titleEn: e.target.value })} />
+                    </div>
                   </div>
-                  <Button onClick={() => createCourse.mutate()} disabled={createCourse.isPending || !selectedCategory}>
-                    <Plus className='mr-2 size-4' /> Add course
-                  </Button>
+                  <div className='flex items-center gap-2'>
+                    <Switch checked={courseForm.isPublished} onCheckedChange={(v) => setCourseForm({ ...courseForm, isPublished: v })} />
+                    <Label>Published</Label>
+                  </div>
+                  <div className='flex flex-wrap gap-2'>
+                    {editingCourseId ? (
+                      <Button
+                        onClick={() => updateCourse.mutate()}
+                        disabled={updateCourse.isPending || !courseFormValid}
+                      >
+                        Save changes
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => createCourse.mutate()}
+                        disabled={createCourse.isPending || !courseFormValid}
+                      >
+                        <Plus className='mr-2 size-4' /> Add course
+                      </Button>
+                    )}
+                    {editingCourseId ? (
+                      <Button variant='outline' onClick={cancelEditCourse} disabled={updateCourse.isPending}>
+                        Cancel
+                      </Button>
+                    ) : null}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1067,15 +1238,34 @@ export function LearnContentPanel() {
               <CardHeader><CardTitle className='text-base'>Sections, courses & videos</CardTitle></CardHeader>
               <CardContent className='space-y-4'>
                 {categories.map((cat) => (
-                  <div key={cat.id} className='rounded-lg border p-3'>
+                  <div
+                    key={cat.id}
+                    className={cn(
+                      'rounded-lg border p-3',
+                      editingCategoryId === cat.id && 'ring-2 ring-primary/60',
+                    )}
+                  >
                     <div className='mb-2 flex items-center justify-between'>
                       <div>
                         <div className='font-medium'>{cat.titleEn}</div>
                         <div className='text-sm text-muted-foreground' dir='rtl'>{cat.titleAr}</div>
                       </div>
-                      <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'category', id: cat.id, label: cat.titleEn })}>
-                        <Trash2 className='size-4' />
-                      </Button>
+                      <div className='flex items-center gap-1'>
+                        <Badge variant={cat.isPublished ? 'secondary' : 'outline'}>
+                          {cat.isPublished ? 'Live' : 'Draft'}
+                        </Badge>
+                        <Button
+                          variant='ghost'
+                          size='icon'
+                          aria-label={`Edit ${cat.titleEn}`}
+                          onClick={() => startEditCategory(cat)}
+                        >
+                          <Pencil className='size-4' />
+                        </Button>
+                        <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'category', id: cat.id, label: cat.titleEn })}>
+                          <Trash2 className='size-4' />
+                        </Button>
+                      </div>
                     </div>
 
                     {cat.standaloneLessons.length > 0 ? (
@@ -1095,7 +1285,13 @@ export function LearnContentPanel() {
                     ) : null}
 
                     {cat.courses.map((course) => (
-                      <div key={course.id} className='mb-3 rounded-md bg-muted/40 p-2'>
+                      <div
+                        key={course.id}
+                        className={cn(
+                          'mb-3 rounded-md bg-muted/40 p-2',
+                          editingCourseId === course.id && 'ring-2 ring-primary/60',
+                        )}
+                      >
                         <div className='mb-1 flex items-center justify-between gap-2'>
                           <div>
                             <div className='text-sm font-medium'>{course.titleEn}</div>
@@ -1103,9 +1299,22 @@ export function LearnContentPanel() {
                               <div className='text-xs text-muted-foreground'>Playlist: {course.youtubePlaylistId}</div>
                             ) : null}
                           </div>
-                          <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'course', id: course.id, label: course.titleEn })}>
-                            <Trash2 className='size-3' />
-                          </Button>
+                          <div className='flex items-center gap-1'>
+                            <Badge variant={course.isPublished ? 'secondary' : 'outline'}>
+                              {course.isPublished ? 'Live' : 'Draft'}
+                            </Badge>
+                            <Button
+                              variant='ghost'
+                              size='icon'
+                              aria-label={`Edit ${course.titleEn}`}
+                              onClick={() => startEditCourse(course)}
+                            >
+                              <Pencil className='size-3' />
+                            </Button>
+                            <Button variant='ghost' size='icon' onClick={() => setDeleteTarget({ kind: 'course', id: course.id, label: course.titleEn })}>
+                              <Trash2 className='size-3' />
+                            </Button>
+                          </div>
                         </div>
                         <ul className='space-y-1 text-sm'>
                           {course.lessons.map((lesson) => (

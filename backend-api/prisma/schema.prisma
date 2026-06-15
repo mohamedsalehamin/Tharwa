@@ -126,6 +126,18 @@ enum GoalSavedSource {
   category
 }
 
+enum EquityListKind {
+  sector
+  thematic
+  market_rule
+}
+
+enum EquityListMemberSource {
+  import
+  admin
+  sync
+}
+
 model Instrument {
   id                String         @id @default(uuid())
   kind              InstrumentKind
@@ -808,4 +820,38 @@ model LearnCourseLesson {
   @@index([categoryId, sortOrder])
   @@index([courseId, sortOrder])
   @@map("learn_course_lessons")
+}
+
+/// Curated EGX stock lists (sectors, thematic screens, market rules).
+model EquityList {
+  id            String             @id @default(uuid())
+  code          String             @unique
+  titleAr       String             @map("title_ar")
+  titleEn       String             @map("title_en")
+  descriptionAr String?            @map("description_ar") @db.Text
+  descriptionEn String?            @map("description_en") @db.Text
+  kind          EquityListKind
+  sortOrder     Int                @default(0) @map("sort_order")
+  isPublished   Boolean            @default(false) @map("is_published")
+  /// TradingView `sector` strings used for bootstrap import (JSON string array).
+  tvAliases     Json?              @map("tv_aliases")
+  members       EquityListMember[]
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  @@index([isPublished, sortOrder])
+  @@map("equity_lists")
+}
+
+model EquityListMember {
+  listId    String                 @map("list_id")
+  list      EquityList             @relation(fields: [listId], references: [id], onDelete: Cascade)
+  symbol    String
+  source    EquityListMemberSource @default(admin)
+  createdAt DateTime               @default(now()) @map("created_at")
+  updatedAt DateTime               @updatedAt @map("updated_at")
+
+  @@id([listId, symbol])
+  @@index([symbol])
+  @@map("equity_list_members")
 }

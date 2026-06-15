@@ -14,6 +14,7 @@ import { openapiDocRoutes } from './routes/v1/openapi-doc.js';
 import { v1MarketRoutes } from './routes/v1/market.js';
 import { v1CalendarRoutes } from './routes/v1/calendar.js';
 import { v1StocksDiscoveryRoutes } from './routes/v1/stocks-discovery.js';
+import { v1EquityListsRoutes } from './routes/v1/equity-lists.js';
 import { v1StocksCuratedRoutes } from './routes/v1/stocks-curated.js';
 import { v1AuthRoutes } from './routes/v1/auth.js';
 import { v1WatchlistRoutes } from './routes/v1/watchlist.js';
@@ -36,6 +37,7 @@ import { adminSiteRoutes } from './routes/admin/site.js';
 import { adminInflationBenchmarkRoutes } from './routes/admin/inflation-benchmark.js';
 import { adminEgxHolidaysRoutes } from './routes/admin/egx-holidays.js';
 import { adminLearnRoutes } from './routes/admin/learn.js';
+import { adminEquityListsRoutes } from './routes/admin/equity-lists.js';
 import { v1LearnRoutes } from './routes/v1/learn.js';
 import { v1SiteRoutes } from './routes/v1/site.js';
 
@@ -72,6 +74,7 @@ export async function buildApp(env: Env, ctx: AppCtx) {
   await app.register(v1MarketRoutes, { prefix: '/v1' });
   await app.register(v1CalendarRoutes, { prefix: '/v1' });
   await app.register(v1StocksDiscoveryRoutes, { prefix: '/v1' });
+  await app.register(v1EquityListsRoutes, { prefix: '/v1' });
   await app.register(v1StocksCuratedRoutes, { prefix: '/v1' });
   await app.register(v1AuthRoutes, { prefix: '/v1' });
   await app.register(v1WatchlistRoutes, { prefix: '/v1' });
@@ -96,6 +99,7 @@ export async function buildApp(env: Env, ctx: AppCtx) {
   await app.register(adminInflationBenchmarkRoutes, { prefix: '/admin/v1' });
   await app.register(adminEgxHolidaysRoutes, { prefix: '/admin/v1' });
   await app.register(adminLearnRoutes, { prefix: '/admin/v1' });
+  await app.register(adminEquityListsRoutes, { prefix: '/admin/v1' });
 
   return app;
 }

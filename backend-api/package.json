@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "verify:movers": "node scripts/verify-egx-movers.mjs",
+    "import:equity-sectors": "tsx scripts/import-equity-sectors.ts",
     "backfill:metal-history": "node scripts/backfill-metal-channel-history.mjs"
   },
   "dependencies": {

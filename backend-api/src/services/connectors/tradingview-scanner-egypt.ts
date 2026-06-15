@@ -219,3 +219,50 @@ export async function scanEgyptMarketFull(
   });
   });
 }
+
+const SECTOR_SCAN_COLUMNS = ['name', 'sector'] as const;
+
+export type EgxSymbolSectorRow = {
+  symbol: string;
+  sector: string | null;
+};
+
+/** EGX tickers with TradingView `sector` (for equity-list bootstrap import). */
+export async function scanEgyptSymbolsWithSector(
+  signal?: AbortSignal,
+): Promise<EgxSymbolSectorRow[]> {
+  return observeConnector('tradingview_scanner_egypt', 'symbols_with_sector', async () => {
+    const res = await fetch(SCAN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Origin: 'https://www.tradingview.com',
+      },
+      body: JSON.stringify({
+        filter: [{ left: 'type', operation: 'equal', right: 'stock' }],
+        options: { lang: 'en' },
+        markets: ['egypt'],
+        symbols: { query: { types: [] } },
+        columns: [...SECTOR_SCAN_COLUMNS],
+        sort: { sortBy: 'name', sortOrder: 'asc' },
+        range: [0, 500],
+      }),
+      signal,
+    });
+    const body = (await res.json()) as ScannerPayload;
+    if (!res.ok) {
+      throw new Error(`EGX sector scanner HTTP ${res.status}`);
+    }
+    if (!Array.isArray(body.data)) {
+      throw new Error('EGX sector scanner invalid payload');
+    }
+    return body.data.map((row) => {
+      const sym = symbolFromScannerId(row.s);
+      const sectorRaw = String(row.d[1] ?? '').trim();
+      return {
+        symbol: sym.toUpperCase(),
+        sector: sectorRaw.length > 0 ? sectorRaw : null,
+      };
+    });
+  });
+}

@@ -249,6 +249,16 @@ export async function removeEquityListMember(listId: string, symbol: string): Pr
   }
 }
 
+export async function listEquityListMembersAdmin(
+  listId: string,
+): Promise<{ symbol: string; source: EquityListMemberSource }[]> {
+  return prisma.equityListMember.findMany({
+    where: { listId },
+    orderBy: { symbol: 'asc' },
+    select: { symbol: true, source: true },
+  });
+}
+
 export type SectorImportResult = {
   scanned: number;
   assigned: number;

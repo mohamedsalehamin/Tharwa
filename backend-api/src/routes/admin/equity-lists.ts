@@ -11,6 +11,7 @@ import {
   importSectorMembersFromTradingView,
   invalidateEquityListCaches,
   listEquityListsAdmin,
+  listEquityListMembersAdmin,
   removeEquityListMember,
   setEquityListMembers,
   updateEquityList,
@@ -107,6 +108,17 @@ export const adminEquityListsRoutes: FastifyPluginAsync = async (app) => {
       await invalidateEquityListCaches(ctx().redis);
       await writeAdminAudit(req.admin!.id, 'admin.equity_lists.delete', { id }, clientIp(req));
       return reply.send({ ok: true });
+    } catch (e) {
+      if (!reply.sent) sendError(reply, e);
+      return;
+    }
+  });
+
+  app.get('/equity-lists/:id/members', { ...guard }, async (req, reply) => {
+    try {
+      const { id } = req.params as { id: string };
+      const items = await listEquityListMembersAdmin(id);
+      return reply.send({ items });
     } catch (e) {
       if (!reply.sent) sendError(reply, e);
       return;

@@ -21,6 +21,7 @@ import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedPushIndexRouteImport } from './routes/_authenticated/push/index'
 import { Route as AuthenticatedLearnIndexRouteImport } from './routes/_authenticated/learn/index'
 import { Route as AuthenticatedInstrumentsIndexRouteImport } from './routes/_authenticated/instruments/index'
+import { Route as AuthenticatedEquityListsIndexRouteImport } from './routes/_authenticated/equity-lists/index'
 import { Route as AuthenticatedEgxHolidaysIndexRouteImport } from './routes/_authenticated/egx-holidays/index'
 import { Route as AuthenticatedContactIndexRouteImport } from './routes/_authenticated/contact/index'
 import { Route as AuthenticatedAnnouncementsIndexRouteImport } from './routes/_authenticated/announcements/index'
@@ -89,6 +90,12 @@ const AuthenticatedInstrumentsIndexRoute =
     path: '/instruments/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEquityListsIndexRoute =
+  AuthenticatedEquityListsIndexRouteImport.update({
+    id: '/equity-lists/',
+    path: '/equity-lists/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEgxHolidaysIndexRoute =
   AuthenticatedEgxHolidaysIndexRouteImport.update({
     id: '/egx-holidays/',
@@ -145,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/announcements/': typeof AuthenticatedAnnouncementsIndexRoute
   '/contact/': typeof AuthenticatedContactIndexRoute
   '/egx-holidays/': typeof AuthenticatedEgxHolidaysIndexRoute
+  '/equity-lists/': typeof AuthenticatedEquityListsIndexRoute
   '/instruments/': typeof AuthenticatedInstrumentsIndexRoute
   '/learn/': typeof AuthenticatedLearnIndexRoute
   '/push/': typeof AuthenticatedPushIndexRoute
@@ -165,6 +173,7 @@ export interface FileRoutesByTo {
   '/announcements': typeof AuthenticatedAnnouncementsIndexRoute
   '/contact': typeof AuthenticatedContactIndexRoute
   '/egx-holidays': typeof AuthenticatedEgxHolidaysIndexRoute
+  '/equity-lists': typeof AuthenticatedEquityListsIndexRoute
   '/instruments': typeof AuthenticatedInstrumentsIndexRoute
   '/learn': typeof AuthenticatedLearnIndexRoute
   '/push': typeof AuthenticatedPushIndexRoute
@@ -187,6 +196,7 @@ export interface FileRoutesById {
   '/_authenticated/announcements/': typeof AuthenticatedAnnouncementsIndexRoute
   '/_authenticated/contact/': typeof AuthenticatedContactIndexRoute
   '/_authenticated/egx-holidays/': typeof AuthenticatedEgxHolidaysIndexRoute
+  '/_authenticated/equity-lists/': typeof AuthenticatedEquityListsIndexRoute
   '/_authenticated/instruments/': typeof AuthenticatedInstrumentsIndexRoute
   '/_authenticated/learn/': typeof AuthenticatedLearnIndexRoute
   '/_authenticated/push/': typeof AuthenticatedPushIndexRoute
@@ -209,6 +219,7 @@ export interface FileRouteTypes {
     | '/announcements/'
     | '/contact/'
     | '/egx-holidays/'
+    | '/equity-lists/'
     | '/instruments/'
     | '/learn/'
     | '/push/'
@@ -229,6 +240,7 @@ export interface FileRouteTypes {
     | '/announcements'
     | '/contact'
     | '/egx-holidays'
+    | '/equity-lists'
     | '/instruments'
     | '/learn'
     | '/push'
@@ -250,6 +262,7 @@ export interface FileRouteTypes {
     | '/_authenticated/announcements/'
     | '/_authenticated/contact/'
     | '/_authenticated/egx-holidays/'
+    | '/_authenticated/equity-lists/'
     | '/_authenticated/instruments/'
     | '/_authenticated/learn/'
     | '/_authenticated/push/'
@@ -354,6 +367,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInstrumentsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/equity-lists/': {
+      id: '/_authenticated/equity-lists/'
+      path: '/equity-lists'
+      fullPath: '/equity-lists/'
+      preLoaderRoute: typeof AuthenticatedEquityListsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/egx-holidays/': {
       id: '/_authenticated/egx-holidays/'
       path: '/egx-holidays'
@@ -413,6 +433,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnnouncementsIndexRoute: typeof AuthenticatedAnnouncementsIndexRoute
   AuthenticatedContactIndexRoute: typeof AuthenticatedContactIndexRoute
   AuthenticatedEgxHolidaysIndexRoute: typeof AuthenticatedEgxHolidaysIndexRoute
+  AuthenticatedEquityListsIndexRoute: typeof AuthenticatedEquityListsIndexRoute
   AuthenticatedInstrumentsIndexRoute: typeof AuthenticatedInstrumentsIndexRoute
   AuthenticatedLearnIndexRoute: typeof AuthenticatedLearnIndexRoute
   AuthenticatedPushIndexRoute: typeof AuthenticatedPushIndexRoute
@@ -429,6 +450,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAnnouncementsIndexRoute: AuthenticatedAnnouncementsIndexRoute,
   AuthenticatedContactIndexRoute: AuthenticatedContactIndexRoute,
   AuthenticatedEgxHolidaysIndexRoute: AuthenticatedEgxHolidaysIndexRoute,
+  AuthenticatedEquityListsIndexRoute: AuthenticatedEquityListsIndexRoute,
   AuthenticatedInstrumentsIndexRoute: AuthenticatedInstrumentsIndexRoute,
   AuthenticatedLearnIndexRoute: AuthenticatedLearnIndexRoute,
   AuthenticatedPushIndexRoute: AuthenticatedPushIndexRoute,

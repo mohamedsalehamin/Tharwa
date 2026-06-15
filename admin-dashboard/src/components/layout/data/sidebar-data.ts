@@ -6,6 +6,7 @@ import {
   Globe,
   Layers,
   LayoutDashboard,
+  ListOrdered,
   Mail,
   Megaphone,
   ScrollText,
@@ -41,6 +42,11 @@ export const sidebarData: SidebarData = {
           title: 'Instruments',
           url: '/instruments',
           icon: Layers,
+        },
+        {
+          title: 'Equity lists',
+          url: '/equity-lists',
+          icon: ListOrdered,
         },
         {
           title: 'Users',

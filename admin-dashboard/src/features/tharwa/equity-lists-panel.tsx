@@ -53,6 +53,8 @@ export type EquityListItem = {
 type EquityListMember = {
   symbol: string
   source: EquityListMemberSource
+  displayNameAr: string | null
+  displayNameEn: string | null
 }
 
 type ListForm = {
@@ -517,6 +519,8 @@ export function EquityListsPanel() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Symbol</TableHead>
+                      <TableHead>Name (AR)</TableHead>
+                      <TableHead>Name (EN)</TableHead>
                       <TableHead>Source</TableHead>
                       <TableHead />
                     </TableRow>
@@ -524,7 +528,9 @@ export function EquityListsPanel() {
                   <TableBody>
                     {(membersQuery.data?.items ?? []).map((m) => (
                       <TableRow key={m.symbol}>
-                        <TableCell className='font-mono'>{m.symbol}</TableCell>
+                        <TableCell className='font-mono font-medium'>{m.symbol}</TableCell>
+                        <TableCell>{m.displayNameAr ?? '—'}</TableCell>
+                        <TableCell>{m.displayNameEn ?? '—'}</TableCell>
                         <TableCell>
                           <Badge variant='outline'>{m.source}</Badge>
                         </TableCell>
@@ -542,7 +548,7 @@ export function EquityListsPanel() {
                     ))}
                     {(membersQuery.data?.items ?? []).length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={3} className='text-muted-foreground text-center'>
+                        <TableCell colSpan={5} className='text-muted-foreground text-center'>
                           No symbols in this list yet.
                         </TableCell>
                       </TableRow>

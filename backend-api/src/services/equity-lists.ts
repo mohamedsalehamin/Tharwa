@@ -3,6 +3,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import {
   EquityListKind,
   EquityListMemberSource,
+  InstrumentKind,
   Prisma,
   type EquityList,
 } from '@prisma/client';
@@ -249,13 +250,36 @@ export async function removeEquityListMember(listId: string, symbol: string): Pr
   }
 }
 
-export async function listEquityListMembersAdmin(
-  listId: string,
-): Promise<{ symbol: string; source: EquityListMemberSource }[]> {
-  return prisma.equityListMember.findMany({
+export type EquityListMemberAdmin = {
+  symbol: string;
+  source: EquityListMemberSource;
+  displayNameAr: string | null;
+  displayNameEn: string | null;
+};
+
+export async function listEquityListMembersAdmin(listId: string): Promise<EquityListMemberAdmin[]> {
+  const members = await prisma.equityListMember.findMany({
     where: { listId },
     orderBy: { symbol: 'asc' },
     select: { symbol: true, source: true },
+  });
+  if (members.length === 0) return [];
+
+  const codes = members.map((m) => m.symbol.trim().toUpperCase());
+  const instruments = await prisma.instrument.findMany({
+    where: { kind: InstrumentKind.equity, code: { in: codes } },
+    select: { code: true, displayNameAr: true, displayNameEn: true },
+  });
+  const byCode = new Map(instruments.map((ins) => [ins.code.toUpperCase(), ins]));
+
+  return members.map((m) => {
+    const ins = byCode.get(m.symbol.toUpperCase());
+    return {
+      symbol: m.symbol,
+      source: m.source,
+      displayNameAr: ins?.displayNameAr?.trim() || null,
+      displayNameEn: ins?.displayNameEn?.trim() || null,
+    };
   });
 }
 

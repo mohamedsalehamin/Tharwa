@@ -46,23 +46,22 @@ export type MetaPageOption = {
   igUsername: string | null;
 };
 
+export function buildMetaOAuthScopes(env: Env): string {
+  const custom = env.META_OAUTH_SCOPES?.trim();
+  if (custom) return custom;
+  // Facebook Page scopes only — Instagram scopes fail until the Meta app adds the
+  // "Instagram API" use case. Page tokens can still publish to linked IG accounts.
+  return ['pages_show_list', 'pages_manage_posts', 'business_management'].join(',');
+}
+
 export function buildMetaOAuthUrl(env: Env, state: string): string {
   const appId = env.META_APP_ID!.trim();
   const redirect = env.META_OAUTH_REDIRECT_URI!.trim();
-  // Meta deprecated legacy Instagram scopes in 2025 — use instagram_business_* variants.
-  // Add matching use cases in Meta App Dashboard (Pages + Instagram API) before OAuth.
-  const scopes = [
-    'pages_show_list',
-    'pages_manage_posts',
-    'instagram_business_basic',
-    'instagram_business_content_publish',
-    'business_management',
-  ].join(',');
   const url = new URL('https://www.facebook.com/v21.0/dialog/oauth');
   url.searchParams.set('client_id', appId);
   url.searchParams.set('redirect_uri', redirect);
   url.searchParams.set('state', state);
-  url.searchParams.set('scope', scopes);
+  url.searchParams.set('scope', buildMetaOAuthScopes(env));
   url.searchParams.set('response_type', 'code');
   return url.toString();
 }

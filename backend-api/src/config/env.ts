@@ -173,8 +173,10 @@ const envSchema = z.object({
   META_APP_ID: z.string().min(5).optional(),
   /** Meta app secret — server only. */
   META_APP_SECRET: z.string().min(8).optional(),
-  /** OAuth redirect URI registered in Meta app (must hit backend callback route). */
+  /** OAuth redirect URI registered in Meta app (must hit backend API, not admin SPA). */
   META_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  /** Optional comma-separated OAuth scopes override (defaults to Facebook Page scopes). */
+  META_OAUTH_SCOPES: z.string().min(1).optional(),
   /** Directory containing social SVG templates (defaults to backend assets copy). */
   SOCIAL_TEMPLATES_DIR: z.string().min(1).default('./assets/social-templates'),
   /** Public origin for temporary social images (Instagram requires image_url). */

@@ -145,18 +145,52 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
+function oauthResultHtml(title: string, body: string): string {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>${title}</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;max-width:40rem"><h1>${title}</h1><p>${body}</p><p><a href="/social/">Return to Social posts</a></p><script>setTimeout(()=>window.close(),8000)</script></body></html>`;
+}
+
   app.get('/social/meta/oauth/callback', async (req, reply) => {
     try {
+      const raw = req.query as Record<string, unknown>;
+      const oauthError =
+        typeof raw.error === 'string'
+          ? raw.error
+          : typeof raw.error_message === 'string'
+            ? raw.error_message
+            : null;
+      if (oauthError) {
+        const message =
+          typeof raw.error_message === 'string'
+            ? decodeURIComponent(raw.error_message.replace(/\+/g, ' '))
+            : oauthError;
+        return reply
+          .type('text/html')
+          .send(
+            oauthResultHtml(
+              'Facebook connection failed',
+              `Meta returned: ${message}. If scopes are invalid, connect with Facebook-only scopes or paste a Page access token manually in Social posts.`,
+            ),
+          );
+      }
+
       const query = z
         .object({
           code: z.string().min(1),
           state: z.string().min(1),
         })
         .safeParse(req.query);
-      if (!query.success) throw new AppError('VALIDATION', 'Missing OAuth code/state', 400);
+      if (!query.success) {
+        return reply
+          .type('text/html')
+          .send(oauthResultHtml('Facebook connection failed', 'Missing OAuth code or state.'));
+      }
 
       const adminId = await ctx().redis.get(`${OAUTH_STATE_PREFIX}${query.data.state}`);
-      if (!adminId) throw new AppError('AUTH', 'Invalid or expired OAuth state', 400);
+      if (!adminId) {
+        return reply
+          .type('text/html')
+          .send(oauthResultHtml('Facebook connection failed', 'Invalid or expired OAuth state.'));
+      }
       await ctx().redis.del(`${OAUTH_STATE_PREFIX}${query.data.state}`);
 
       const userToken = await exchangeMetaOAuthCode(ctx().env, query.data.code);
@@ -172,12 +206,20 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
       const accept = String(req.headers.accept ?? '');
       if (accept.includes('text/html')) {
         return reply.type('text/html').send(
-          `<!doctype html><html><body><p>Connected. Return to the admin dashboard and pick a Facebook Page (${pages.length} found).</p><script>window.close()</script></body></html>`,
+          oauthResultHtml(
+            'Facebook connected',
+            `Return to the admin dashboard and pick a Facebook Page (${pages.length} found).`,
+          ),
         );
       }
       return reply.send({ pages });
     } catch (e) {
-      if (!reply.sent) sendError(reply, e);
+      const message = e instanceof Error ? e.message : String(e);
+      if (!reply.sent) {
+        return reply
+          .type('text/html')
+          .send(oauthResultHtml('Facebook connection failed', message));
+      }
     }
   });
 

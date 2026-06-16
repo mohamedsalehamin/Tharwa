@@ -49,12 +49,13 @@ export type MetaPageOption = {
 export function buildMetaOAuthUrl(env: Env, state: string): string {
   const appId = env.META_APP_ID!.trim();
   const redirect = env.META_OAUTH_REDIRECT_URI!.trim();
+  // Meta deprecated legacy Instagram scopes in 2025 — use instagram_business_* variants.
+  // Add matching use cases in Meta App Dashboard (Pages + Instagram API) before OAuth.
   const scopes = [
     'pages_show_list',
     'pages_manage_posts',
-    'pages_read_engagement',
-    'instagram_basic',
-    'instagram_content_publish',
+    'instagram_business_basic',
+    'instagram_business_content_publish',
     'business_management',
   ].join(',');
   const url = new URL('https://www.facebook.com/v21.0/dialog/oauth');

@@ -19,6 +19,7 @@ export const metaSocialConfigSchema = z.object({
   pageId: z.string().min(1),
   pageName: z.string().min(1),
   pageAccessToken: z.string().min(20),
+  metaUserAccessToken: z.string().min(20).optional(),
   igUserId: z.string().min(1).nullable().optional(),
   igUsername: z.string().min(1).nullable().optional(),
   publishFacebook: z.boolean().default(true),

@@ -48,7 +48,10 @@ export type MetaPageOption = {
 
 /** Scopes required to read instagram_business_account and publish to Instagram. */
 export const META_OAUTH_SCOPES_DEFAULT =
-  'pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish';
+  'pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish,business_management';
+
+const IG_PAGE_FIELDS =
+  'instagram_business_account{id,username},connected_instagram_account{id,username}';
 
 export function buildMetaOAuthScopes(env: Env): string {
   const custom = env.META_OAUTH_SCOPES?.trim();
@@ -87,9 +90,72 @@ export type PageInstagramResolution = {
   error: string | null;
 };
 
+type ResolvePageInstagramOptions = {
+  userAccessToken?: string;
+};
+
+function igFromPageFields(data: {
+  instagram_business_account?: { id: string; username?: string } | null;
+  connected_instagram_account?: { id: string; username?: string } | null;
+}): PageInstagramResolution | null {
+  const ig = data.instagram_business_account ?? data.connected_instagram_account;
+  if (!ig?.id) return null;
+  return { igUserId: ig.id, igUsername: ig.username ?? null, error: null };
+}
+
+async function tryInstagramAccountsEdge(
+  pageId: string,
+  accessToken: string,
+): Promise<PageInstagramResolution | null> {
+  try {
+    const data = await graphGet<{ data?: { id: string; username?: string }[] }>(
+      `/${pageId}/instagram_accounts`,
+      { access_token: accessToken, fields: 'id,username' },
+    );
+    const account = data.data?.find((row) => row.id) ?? data.data?.[0];
+    if (!account?.id) return null;
+    return { igUserId: account.id, igUsername: account.username ?? null, error: null };
+  } catch {
+    return null;
+  }
+}
+
+async function resolveWithToken(
+  pageId: string,
+  accessToken: string,
+  label: string,
+): Promise<{ resolution: PageInstagramResolution | null; notes: string[] }> {
+  const notes: string[] = [];
+  if (accessToken.length < 20) {
+    notes.push(`${label}: token missing`);
+    return { resolution: null, notes };
+  }
+
+  try {
+    const data = await graphGet<{
+      instagram_business_account?: { id: string; username?: string } | null;
+      connected_instagram_account?: { id: string; username?: string } | null;
+    }>(`/${pageId}`, {
+      access_token: accessToken,
+      fields: IG_PAGE_FIELDS,
+    });
+    const fromFields = igFromPageFields(data);
+    if (fromFields) return { resolution: fromFields, notes };
+    notes.push(`${label}: instagram_business_account empty`);
+  } catch (e) {
+    notes.push(`${label}: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  const fromEdge = await tryInstagramAccountsEdge(pageId, accessToken);
+  if (fromEdge) return { resolution: fromEdge, notes };
+  notes.push(`${label}: instagram_accounts empty`);
+  return { resolution: null, notes };
+}
+
 export async function resolvePageInstagramAccount(
   pageId: string,
   pageAccessToken: string,
+  options?: ResolvePageInstagramOptions,
 ): Promise<PageInstagramResolution> {
   if (!pageId || pageAccessToken.length < 20) {
     return {
@@ -98,28 +164,28 @@ export async function resolvePageInstagramAccount(
       error: 'Page ID and access token are required',
     };
   }
-  try {
-    const data = await graphGet<{
-      instagram_business_account?: { id: string; username?: string } | null;
-    }>(`/${pageId}`, {
-      access_token: pageAccessToken,
-      fields: 'instagram_business_account{id,username}',
-    });
-    const igUserId = data.instagram_business_account?.id ?? null;
-    const igUsername = data.instagram_business_account?.username ?? null;
-    if (!igUserId) {
-      return {
-        igUserId: null,
-        igUsername: null,
-        error:
-          'Meta returned no instagram_business_account for this Page. Confirm @thrwa.co is linked in Page settings, then reconnect Facebook so the token includes pages_read_engagement.',
-      };
-    }
-    return { igUserId, igUsername, error: null };
-  } catch (e) {
-    const error = e instanceof Error ? e.message : String(e);
-    return { igUserId: null, igUsername: null, error };
+
+  const notes: string[] = [];
+  const userAccessToken = options?.userAccessToken?.trim();
+
+  const pageAttempt = await resolveWithToken(pageId, pageAccessToken, 'page token');
+  notes.push(...pageAttempt.notes);
+  if (pageAttempt.resolution) return pageAttempt.resolution;
+
+  if (userAccessToken && userAccessToken !== pageAccessToken) {
+    const userAttempt = await resolveWithToken(pageId, userAccessToken, 'user token');
+    notes.push(...userAttempt.notes);
+    if (userAttempt.resolution) return userAttempt.resolution;
   }
+
+  return {
+    igUserId: null,
+    igUsername: null,
+    error:
+      `No Instagram account returned for Page ${pageId}. ${notes.join('; ')}. ` +
+      'In Meta Business Suite, open the Thrwa Page → Settings → Linked accounts and re-link @thrwa.co, ' +
+      'then Disconnect and Connect with Facebook again.',
+  };
 }
 
 export function instagramResolutionHint(resolution: PageInstagramResolution): string {
@@ -131,9 +197,14 @@ export function instagramResolutionHint(resolution: PageInstagramResolution): st
   return metaError;
 }
 
-async function enrichPageWithInstagram(page: MetaPageOption): Promise<MetaPageOption> {
+async function enrichPageWithInstagram(
+  page: MetaPageOption,
+  userAccessToken?: string,
+): Promise<MetaPageOption> {
   if (page.pageAccessToken.length < 20) return page;
-  const ig = await resolvePageInstagramAccount(page.pageId, page.pageAccessToken);
+  const ig = await resolvePageInstagramAccount(page.pageId, page.pageAccessToken, {
+    userAccessToken,
+  });
   return {
     ...page,
     igUserId: ig.igUserId ?? page.igUserId,
@@ -164,7 +235,7 @@ export async function fetchMetaPages(userAccessToken: string): Promise<MetaPageO
     }))
     .filter((p) => p.pageId && p.pageName);
 
-  return Promise.all(pages.map(enrichPageWithInstagram));
+  return Promise.all(pages.map((page) => enrichPageWithInstagram(page, userAccessToken)));
 }
 
 export const INSTAGRAM_NOT_LINKED_MESSAGE =
@@ -172,6 +243,7 @@ export const INSTAGRAM_NOT_LINKED_MESSAGE =
 
 export async function resolveInstagramForConfig(
   config: MetaSocialConfig,
+  options?: ResolvePageInstagramOptions,
 ): Promise<{ config: MetaSocialConfig; resolution: PageInstagramResolution }> {
   if (config.igUserId) {
     return {
@@ -183,7 +255,13 @@ export async function resolveInstagramForConfig(
       },
     };
   }
-  const resolution = await resolvePageInstagramAccount(config.pageId, config.pageAccessToken);
+  const resolution = await resolvePageInstagramAccount(
+    config.pageId,
+    config.pageAccessToken,
+    {
+      userAccessToken: options?.userAccessToken ?? config.metaUserAccessToken,
+    },
+  );
   if (!resolution.igUserId) {
     return { config, resolution };
   }

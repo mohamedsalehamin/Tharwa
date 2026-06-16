@@ -69,6 +69,23 @@ const publishBody = z.object({
 
 const OAUTH_STATE_PREFIX = 'social:meta-oauth:';
 
+type MetaOAuthSession = {
+  pages: Awaited<ReturnType<typeof fetchMetaPages>>;
+  userAccessToken?: string;
+  at: number;
+};
+
+async function readMetaOAuthSession(
+  redis: AppCtx['redis'],
+  adminId: string,
+): Promise<MetaOAuthSession | null> {
+  const raw = await redis.get(`${OAUTH_STATE_PREFIX}pages:${adminId}`);
+  if (!raw) return null;
+  const parsed = JSON.parse(raw) as MetaOAuthSession;
+  if (!parsed || !Array.isArray(parsed.pages)) return null;
+  return parsed;
+}
+
 function oauthResultHtml(adminOrigin: string, title: string, body: string, query = ''): string {
   const socialUrl = `${adminOrigin.replace(/\/$/, '')}/social${query ? `?${query}` : ''}`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>${title}</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;max-width:40rem"><h1>${title}</h1><p>${body}</p><p><a href="${socialUrl}">Return to Social posts</a></p><script>setTimeout(()=>window.close(),8000)</script></body></html>`;
@@ -129,11 +146,19 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
         );
       }
 
+      const oauthSession = await readMetaOAuthSession(ctx().redis, admin.id);
+      let metaUserAccessToken = existing?.metaUserAccessToken;
+      if (oauthSession?.userAccessToken) {
+        metaUserAccessToken = oauthSession.userAccessToken;
+      }
+
       let igUserId = parsed.data.igUserId ?? null;
       let igUsername = parsed.data.igUsername ?? null;
       let igResolutionError: string | null = null;
       if (!igUserId) {
-        const resolved = await resolvePageInstagramAccount(parsed.data.pageId, pageAccessToken);
+        const resolved = await resolvePageInstagramAccount(parsed.data.pageId, pageAccessToken, {
+          userAccessToken: metaUserAccessToken,
+        });
         igUserId = resolved.igUserId;
         igUsername = resolved.igUsername ?? igUsername;
         igResolutionError = resolved.error;
@@ -152,7 +177,7 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
 
       const publicInfo = await upsertMetaSocialConfig(
         admin.id,
-        { ...parsed.data, pageAccessToken, igUserId, igUsername },
+        { ...parsed.data, pageAccessToken, metaUserAccessToken, igUserId, igUsername },
         ctx().env,
       );
       await writeAdminAudit(
@@ -244,7 +269,7 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
 
       await ctx().redis.set(
         `${OAUTH_STATE_PREFIX}pages:${adminId}`,
-        JSON.stringify({ pages, at: Date.now() }),
+        JSON.stringify({ pages, userAccessToken: userToken, at: Date.now() } satisfies MetaOAuthSession),
         'EX',
         900,
       );
@@ -274,10 +299,8 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
   app.get('/social/meta/oauth/pages', { ...superadminGuard }, async (req, reply) => {
     try {
       const admin = req.admin!;
-      const raw = await ctx().redis.get(`${OAUTH_STATE_PREFIX}pages:${admin.id}`);
-      if (!raw) return reply.send({ pages: [] });
-      const parsed = JSON.parse(raw) as { pages: Awaited<ReturnType<typeof fetchMetaPages>> };
-      return reply.send({ pages: parsed.pages ?? [] });
+      const session = await readMetaOAuthSession(ctx().redis, admin.id);
+      return reply.send({ pages: session?.pages ?? [] });
     } catch (e) {
       if (!reply.sent) sendError(reply, e);
     }
@@ -309,10 +332,15 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
         );
       }
 
-      const resolution = await resolvePageInstagramAccount(pageId, pageAccessToken);
+      const resolution = await resolvePageInstagramAccount(pageId, pageAccessToken, {
+        userAccessToken:
+          (await readMetaOAuthSession(ctx().redis, admin.id))?.userAccessToken ??
+          existing?.metaUserAccessToken,
+      });
       if (!resolution.igUserId) {
         return reply.send({
           ...resolution,
+          pageId,
           updated: false,
           hint: instagramResolutionHint(resolution),
         });

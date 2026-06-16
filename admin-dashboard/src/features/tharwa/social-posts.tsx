@@ -230,6 +230,7 @@ export function SocialPostsPanel() {
         igUserId: string | null
         igUsername: string | null
         error: string | null
+        pageId?: string
         updated: boolean
         hint?: string
         meta?: SocialStatusResponse['meta']
@@ -248,7 +249,9 @@ export function SocialPostsPanel() {
         )
         await queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
       } else {
-        const msg = result.hint ?? result.error ?? 'Could not detect Instagram account'
+        const pageHint =
+          'pageId' in result && typeof result.pageId === 'string' ? ` (Page ${result.pageId})` : ''
+        const msg = `${result.hint ?? result.error ?? 'Could not detect Instagram account'}${pageHint}`
         setActionErr(msg)
         toast.error(msg)
       }
@@ -431,12 +434,12 @@ export function SocialPostsPanel() {
             {publishInstagram && !igUserId ? (
               <Alert>
                 <AlertDescription>
-                  Instagram is linked in Meta Business Suite, but this app&apos;s Facebook token cannot read it yet.
-                  Meta requires <span className='font-mono text-xs'>pages_read_engagement</span> and Instagram
-                  permissions — not just <span className='font-mono text-xs'>pages_show_list</span>. After deploying
-                  the latest API: click <strong>Disconnect</strong>, then <strong>Connect with Facebook</strong> again
-                  (approve all requested permissions), pick the Thrwa Page, and click <strong>Detect Instagram</strong>.
-                  Ensure the Instagram use case is enabled in your Meta App Dashboard.
+                  Meta still cannot read @thrwa.co for Page ID <span className='font-mono text-xs'>{pageId || '—'}</span>.
+                  Verify this matches the Thrwa Page in Business Suite. Try: Disconnect → Connect with Facebook
+                  (approve all permissions) → pick the Page showing <strong>@thrwa.co</strong> → Detect Instagram.
+                  If detection keeps failing, paste the Instagram business account ID manually (from Meta Graph API
+                  Explorer: <span className='font-mono text-xs'>{'{page-id}/instagram_accounts'}</span>) and Save with
+                  Publish to Instagram on.
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -463,7 +466,7 @@ export function SocialPostsPanel() {
               </div>
               <div className='grid gap-2'>
                 <Label htmlFor='igUserId'>Instagram business account ID</Label>
-                <Input id='igUserId' value={igUserId} onChange={(e) => setIgUserId(e.target.value)} disabled={!canManage} />
+                <Input id='igUserId' value={igUserId} onChange={(e) => setIgUserId(e.target.value)} disabled={!canManage} placeholder='1784… from Graph API if Detect fails' />
               </div>
               <div className='grid gap-2'>
                 <Label htmlFor='igUsername'>Instagram username</Label>

@@ -7,6 +7,7 @@ import { corsPlugin } from './plugins/cors.js';
 import { observabilityPlugin } from './plugins/observability.js';
 import { publicHttpCachePlugin } from './plugins/public-http-cache.js';
 import { publicUploadsPlugin } from './plugins/public-uploads.js';
+import { socialTemplatesStaticPlugin } from './plugins/social-templates-static.js';
 import { publicMarketRateLimitPlugin } from './plugins/public-rate-limit.js';
 import { healthRoutes } from './routes/health.js';
 import { metricsRoutes } from './routes/metrics.js';
@@ -70,6 +71,7 @@ export async function buildApp(env: Env, ctx: AppCtx) {
   await app.register(publicMarketRateLimitPlugin, { env });
   await app.register(publicHttpCachePlugin, { env });
   await app.register(publicUploadsPlugin, { env });
+  await app.register(socialTemplatesStaticPlugin, { env });
   await app.register(healthRoutes);
   await app.register(openapiDocRoutes, { prefix: '/v1' });
   await app.register(v1MarketRoutes, { prefix: '/v1' });

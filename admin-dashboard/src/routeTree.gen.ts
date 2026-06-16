@@ -18,6 +18,7 @@ import { Route as errors403RouteImport } from './routes/(errors)/403'
 import { Route as errors401RouteImport } from './routes/(errors)/401'
 import { Route as authSignInRouteImport } from './routes/(auth)/sign-in'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
+import { Route as AuthenticatedSocialIndexRouteImport } from './routes/_authenticated/social/index'
 import { Route as AuthenticatedPushIndexRouteImport } from './routes/_authenticated/push/index'
 import { Route as AuthenticatedLearnIndexRouteImport } from './routes/_authenticated/learn/index'
 import { Route as AuthenticatedInstrumentsIndexRouteImport } from './routes/_authenticated/instruments/index'
@@ -74,6 +75,12 @@ const AuthenticatedUsersIndexRoute = AuthenticatedUsersIndexRouteImport.update({
   path: '/users/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSocialIndexRoute =
+  AuthenticatedSocialIndexRouteImport.update({
+    id: '/social/',
+    path: '/social/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPushIndexRoute = AuthenticatedPushIndexRouteImport.update({
   id: '/push/',
   path: '/push/',
@@ -156,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/instruments/': typeof AuthenticatedInstrumentsIndexRoute
   '/learn/': typeof AuthenticatedLearnIndexRoute
   '/push/': typeof AuthenticatedPushIndexRoute
+  '/social/': typeof AuthenticatedSocialIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/website/navigation/': typeof AuthenticatedWebsiteNavigationIndexRoute
   '/website/pages/': typeof AuthenticatedWebsitePagesIndexRoute
@@ -177,6 +185,7 @@ export interface FileRoutesByTo {
   '/instruments': typeof AuthenticatedInstrumentsIndexRoute
   '/learn': typeof AuthenticatedLearnIndexRoute
   '/push': typeof AuthenticatedPushIndexRoute
+  '/social': typeof AuthenticatedSocialIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
   '/website/navigation': typeof AuthenticatedWebsiteNavigationIndexRoute
   '/website/pages': typeof AuthenticatedWebsitePagesIndexRoute
@@ -200,6 +209,7 @@ export interface FileRoutesById {
   '/_authenticated/instruments/': typeof AuthenticatedInstrumentsIndexRoute
   '/_authenticated/learn/': typeof AuthenticatedLearnIndexRoute
   '/_authenticated/push/': typeof AuthenticatedPushIndexRoute
+  '/_authenticated/social/': typeof AuthenticatedSocialIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_authenticated/website/navigation/': typeof AuthenticatedWebsiteNavigationIndexRoute
   '/_authenticated/website/pages/': typeof AuthenticatedWebsitePagesIndexRoute
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/instruments/'
     | '/learn/'
     | '/push/'
+    | '/social/'
     | '/users/'
     | '/website/navigation/'
     | '/website/pages/'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/instruments'
     | '/learn'
     | '/push'
+    | '/social'
     | '/users'
     | '/website/navigation'
     | '/website/pages'
@@ -266,6 +278,7 @@ export interface FileRouteTypes {
     | '/_authenticated/instruments/'
     | '/_authenticated/learn/'
     | '/_authenticated/push/'
+    | '/_authenticated/social/'
     | '/_authenticated/users/'
     | '/_authenticated/website/navigation/'
     | '/_authenticated/website/pages/'
@@ -344,6 +357,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users/'
       preLoaderRoute: typeof AuthenticatedUsersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/social/': {
+      id: '/_authenticated/social/'
+      path: '/social'
+      fullPath: '/social/'
+      preLoaderRoute: typeof AuthenticatedSocialIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/push/': {
@@ -437,6 +457,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInstrumentsIndexRoute: typeof AuthenticatedInstrumentsIndexRoute
   AuthenticatedLearnIndexRoute: typeof AuthenticatedLearnIndexRoute
   AuthenticatedPushIndexRoute: typeof AuthenticatedPushIndexRoute
+  AuthenticatedSocialIndexRoute: typeof AuthenticatedSocialIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
   AuthenticatedWebsiteNavigationIndexRoute: typeof AuthenticatedWebsiteNavigationIndexRoute
   AuthenticatedWebsitePagesIndexRoute: typeof AuthenticatedWebsitePagesIndexRoute
@@ -454,6 +475,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInstrumentsIndexRoute: AuthenticatedInstrumentsIndexRoute,
   AuthenticatedLearnIndexRoute: AuthenticatedLearnIndexRoute,
   AuthenticatedPushIndexRoute: AuthenticatedPushIndexRoute,
+  AuthenticatedSocialIndexRoute: AuthenticatedSocialIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
   AuthenticatedWebsiteNavigationIndexRoute:
     AuthenticatedWebsiteNavigationIndexRoute,

@@ -38,6 +38,7 @@ import { adminInflationBenchmarkRoutes } from './routes/admin/inflation-benchmar
 import { adminEgxHolidaysRoutes } from './routes/admin/egx-holidays.js';
 import { adminLearnRoutes } from './routes/admin/learn.js';
 import { adminEquityListsRoutes } from './routes/admin/equity-lists.js';
+import { adminSocialRoutes } from './routes/admin/social.js';
 import { v1LearnRoutes } from './routes/v1/learn.js';
 import { v1SiteRoutes } from './routes/v1/site.js';
 
@@ -100,6 +101,7 @@ export async function buildApp(env: Env, ctx: AppCtx) {
   await app.register(adminEgxHolidaysRoutes, { prefix: '/admin/v1' });
   await app.register(adminLearnRoutes, { prefix: '/admin/v1' });
   await app.register(adminEquityListsRoutes, { prefix: '/admin/v1' });
+  await app.register(adminSocialRoutes, { prefix: '/admin/v1' });
 
   return app;
 }

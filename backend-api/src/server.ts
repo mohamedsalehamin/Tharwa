@@ -19,6 +19,7 @@ import {
   startPriceAlertEvaluator,
   stopPriceAlertEvaluator,
 } from './jobs/evaluate-price-alerts.js';
+import { startSocialPosts, stopSocialPosts } from './jobs/publish-social-posts.js';
 
 async function main() {
   const env = loadEnv();
@@ -37,8 +38,10 @@ async function main() {
   startDailyBriefs({ env, redis }, log);
   startNetWorthSnapshots({ env, redis }, log);
   startPriceAlertEvaluator({ env, redis }, log);
+  startSocialPosts({ env, redis }, log);
 
   const shutdown = async () => {
+    stopSocialPosts();
     stopPriceAlertEvaluator();
     stopNetWorthSnapshots();
     stopDailyBriefs();

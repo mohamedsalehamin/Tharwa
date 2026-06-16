@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ثروة — قوالب السوشيال ميديا</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: 'Cairo', Arial, sans-serif;
+        background: #0A1A2F;
+        color: #FFFFFF;
+      }
+      header {
+        background: linear-gradient(135deg, #0A1A2F, #112240);
+        border-bottom: 3px solid #C9A227;
+        padding: 2rem 1.5rem;
+        text-align: center;
+      }
+      header h1 { margin: 0 0 0.5rem; font-size: 1.75rem; color: #C9A227; }
+      header p { margin: 0; color: #8A94A6; }
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem 1rem 4rem;
+      }
+      .grid {
+        display: grid;
+        gap: 2rem;
+      }
+      @media (min-width: 900px) {
+        .grid { grid-template-columns: repeat(3, 1fr); }
+      }
+      .card {
+        background: #112240;
+        border-radius: 1rem;
+        overflow: hidden;
+        border: 1px solid #0F2538;
+      }
+      .card h2 {
+        margin: 0;
+        padding: 1rem 1.25rem 0.5rem;
+        font-size: 1.1rem;
+        color: #C9A227;
+      }
+      .card p {
+        margin: 0;
+        padding: 0 1.25rem 1rem;
+        font-size: 0.9rem;
+        color: #8A94A6;
+      }
+      .card object {
+        width: 100%;
+        display: block;
+        border-top: 1px solid #0F2538;
+        background: #0A1A2F;
+      }
+      .meta {
+        margin-top: 2.5rem;
+        background: #112240;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        border: 1px solid #0F2538;
+      }
+      .meta h3 { margin-top: 0; color: #C9A227; }
+      code {
+        background: #0A1A2F;
+        padding: 0.15rem 0.4rem;
+        border-radius: 0.25rem;
+        font-size: 0.85rem;
+        color: #F1F3F5;
+      }
+      ul { line-height: 1.8; color: #8A94A6; }
+      .swatches {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin: 1rem 0;
+      }
+      .swatch {
+        width: 5rem;
+        height: 4rem;
+        border-radius: 0.75rem;
+        border: 1px solid #0F2538;
+        display: flex;
+        align-items: end;
+        justify-content: center;
+        padding-bottom: 0.35rem;
+        font-size: 0.6rem;
+      }
+      .caption-box {
+        margin-top: 1.5rem;
+        background: #0A1A2F;
+        border: 1px solid #0F2538;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        white-space: pre-wrap;
+        font-size: 0.9rem;
+        line-height: 1.7;
+        color: #F1F3F5;
+        direction: rtl;
+      }
+      a { color: #C9A227; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>قوالب بوستات ثروة</h1>
+      <p>thrwa.co · ألوان التطبيق (navy + gold) · 1080×1080 · SVG قابل للبرمجة</p>
+    </header>
+
+    <main>
+      <div class="grid">
+        <article class="card">
+          <h2>أسعار الذهب الآن</h2>
+          <p>بوست يومي — جدول مثل مرجع السوق</p>
+          <object type="image/svg+xml" data="./gold-daily.preview.svg" aria-label="قالب أسعار الذهب" width="1080" height="1080"></object>
+        </article>
+
+        <article class="card">
+          <h2>تنبيه انخفاض الذهب</h2>
+          <p>عند هبوط ملحوظ من بداية اليوم</p>
+          <object type="image/svg+xml" data="./gold-alert.preview.svg" aria-label="قالب تنبيه الذهب" width="1080" height="1080"></object>
+        </article>
+
+        <article class="card">
+          <h2>ملخص البورصة</h2>
+          <p>بعد الإغلاق — أيام التداول</p>
+          <object type="image/svg+xml" data="./egx-close.preview.svg" aria-label="قالب ملخص البورصة" width="1080" height="1080"></object>
+        </article>
+      </div>
+
+      <section class="meta">
+        <h3>ألوان التطبيق (darkPalette)</h3>
+        <div class="swatches">
+          <div class="swatch" style="background:#0A1A2F;color:#8A94A6">navy</div>
+          <div class="swatch" style="background:#112240;color:#8A94A6">navyLight</div>
+          <div class="swatch" style="background:#C9A227;color:#0A1A2F">gold</div>
+          <div class="swatch" style="background:#A8841C;color:#fff">goldPressed</div>
+          <div class="swatch" style="background:#00C853;color:#0A1A2F">emerald</div>
+          <div class="swatch" style="background:#FF3B30;color:#fff">crimson</div>
+          <div class="swatch" style="background:#8A94A6;color:#0A1A2F">softGray</div>
+        </div>
+        <p style="color:#8A94A6;font-size:0.85rem">
+          الألوان: <code>mobile-app/src/theme/palettes.ts</code>
+          · الخط: <code>Cairo</code> من <code>@expo-google-fonts/cairo</code> (نفس التطبيق)
+          · الملفات في <code>fonts/</code>
+        </p>
+
+        <h3>الروابط الرسمية</h3>
+        <ul>
+          <li>الموقع: <a href="https://thrwa.co">thrwa.co</a></li>
+          <li>Android: <code>https://thrwa.co/download/android</code></li>
+          <li>iOS: <code>https://thrwa.co/download/ios</code></li>
+          <li>Facebook: <a href="https://www.facebook.com/thrwa.co">facebook.com/thrwa.co</a></li>
+          <li>Instagram: <a href="https://www.instagram.com/thrwa.co">instagram.com/thrwa.co</a></li>
+        </ul>
+
+        <h3>نص الكابشن (مثال ذهب يومي)</h3>
+        <div class="caption-box">🔴 #اسعار_الذهب_اليوم
+
+أسعار الذهب تواصل الانخفاض ❗
+
+انخفضت #اسعار_الذهب محلياً بما يقارب 40 جنيهاً مقارنةً بسعر افتتاح اليوم، ليتداول عيار 21 الآن عند 4,120 ج للجرام.
+
+الأسعار متغيرة على مدار اليوم — حمّل تطبيق ثروة واعرف أسعار الذهب لحظة بلحظة 🕛
+
+https://thrwa.co/download/android
+https://thrwa.co/download/ios
+
+#ثروة #thrwa #اسعار_الذهب #الذهب_في_مصر</div>
+        <p style="margin-top:0.75rem;color:#8A94A6;font-size:0.85rem">
+          قوالب نص كاملة: <a href="./caption-gold-daily.example.txt">caption-gold-daily.example.txt</a>
+          · <a href="./caption-egx-close.example.txt">caption-egx-close.example.txt</a>
+          · <a href="./brand-links.txt">brand-links.txt</a>
+        </p>
+
+        <h3>Placeholders للربط البرمجي</h3>
+        <ul>
+          <li><code>{{GOLD_24}}</code> <code>{{GOLD_21}}</code> <code>{{GOLD_18}}</code> <code>{{GOLD_POUND}}</code> <code>{{GOLD_OUNCE}}</code></li>
+          <li><code>{{CHANGE_HEADLINE}}</code> <code>{{CHANGE_COLOR}}</code> <code>{{DATE_AR}}</code></li>
+          <li><code>{{EGX30_VALUE}}</code> <code>{{GAINER_1_SYMBOL}}</code> <code>{{LOSER_1_PCT}}</code></li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

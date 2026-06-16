@@ -8,6 +8,12 @@ import {
   resolveFcmServiceAccountJson,
   type FcmServiceAccountPublic,
 } from './fcm-credentials.js';
+import {
+  META_SOCIAL_INTEGRATION_SLUG,
+  getMetaSocialConfig,
+  metaSocialPublicFromConfig,
+  type MetaSocialPublic,
+} from './meta-social-credentials.js';
 import { resetFcmClient } from './fcm.js';
 
 export { FCM_INTEGRATION_SLUG, isFcmConfiguredAnywhere } from './fcm-credentials.js';
@@ -19,6 +25,7 @@ export type IntegrationListItem = {
   source: 'database' | 'environment' | null;
   updatedAt: string | null;
   fcm?: FcmServiceAccountPublic;
+  meta?: MetaSocialPublic;
 };
 
 export async function listIntegrations(env: Env): Promise<IntegrationListItem[]> {
@@ -60,6 +67,24 @@ export async function listIntegrations(env: Env): Promise<IntegrationListItem[]>
       source: fcmSource,
       updatedAt: fcmUpdatedAt,
       fcm: fcmPublic,
+    },
+    ...(await listMetaIntegrationItem(env)),
+  ];
+}
+
+async function listMetaIntegrationItem(env: Env): Promise<IntegrationListItem[]> {
+  const metaRow = await prisma.platformIntegration.findUnique({
+    where: { slug: META_SOCIAL_INTEGRATION_SLUG },
+  });
+  const config = await getMetaSocialConfig(env);
+  return [
+    {
+      slug: META_SOCIAL_INTEGRATION_SLUG,
+      displayName: metaRow?.displayName ?? 'Meta (Facebook & Instagram)',
+      configured: config != null,
+      source: config ? 'database' : null,
+      updatedAt: metaRow?.updatedAt.toISOString() ?? null,
+      meta: config ? metaSocialPublicFromConfig(config, env) : undefined,
     },
   ];
 }

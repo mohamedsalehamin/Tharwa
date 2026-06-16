@@ -11,6 +11,7 @@ import {
   Megaphone,
   ScrollText,
   Settings,
+  Share2,
   Shield,
   Users,
 } from 'lucide-react'
@@ -87,6 +88,11 @@ export const sidebarData: SidebarData = {
           title: 'Push notifications',
           url: '/push',
           icon: Bell,
+        },
+        {
+          title: 'Social posts',
+          url: '/social',
+          icon: Share2,
         },
         {
           title: 'EGX holidays',

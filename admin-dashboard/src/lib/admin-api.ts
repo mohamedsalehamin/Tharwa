@@ -246,3 +246,59 @@ export async function adminUploadInstrumentFlag(
   }
   return (await res.json()) as { flagUrl: string; item: InstrumentRow }
 }
+
+export type MetaSocialPublic = {
+  pageId: string
+  pageName: string
+  igUserId: string | null
+  igUsername: string | null
+  publishFacebook: boolean
+  publishInstagram: boolean
+  schedules: {
+    goldDaily: { enabled: boolean; hour: number; minute: number }
+    egxClose: { enabled: boolean; hour: number; minute: number }
+    goldAlert: { enabled: boolean; dropPct: number }
+  }
+  tokenPreview: string | null
+}
+
+export type SocialStatusResponse = {
+  configured: boolean
+  oauthAvailable: boolean
+  meta: MetaSocialPublic | null
+  brand: {
+    website: string
+    facebook: string
+    instagram: string
+  }
+}
+
+export type MetaPageOption = {
+  pageId: string
+  pageName: string
+  pageAccessToken: string
+  igUserId: string | null
+  igUsername: string | null
+}
+
+export type SocialPreviewResult = {
+  template: string
+  caption: string
+  svg: string
+  pngBase64: string | null
+  pngError: string | null
+}
+
+export type SocialPostRunRow = {
+  id: string
+  template: string
+  channel: string
+  status: string
+  caption: string | null
+  externalPostId: string | null
+  errorMessage: string | null
+  triggeredBy: string
+  cairoDateKey: string
+  postedAt: string | null
+  createdAt: string
+}

@@ -1,0 +1,33 @@
+🔴 #ملخص_البورصة_المصرية
+
+إغلاق جلسة اليوم على مؤشر EGX 30 عند {{EGX30_VALUE}} ({{EGX30_CHANGE}}).
+
+أعلى الرابحين: {{TOP_GAINERS_LINE}}
+أعلى الخاسرين: {{TOP_LOSERS_LINE}}
+
+تابع السوق والمحفظة لحظة بلحظة في تطبيق ثروة 📈
+
+حمّل التطبيق:
+{{PLAY_STORE_URL}}  (افتراضي: https://thrwa.co/download/android)
+{{APP_STORE_URL}}  (افتراضي: https://thrwa.co/download/ios)
+
+#ثروة #thrwa #البورصة_المصرية #EGX
+
+---
+
+مثال جاهز:
+
+🔴 #ملخص_البورصة_المصرية
+
+إغلاق جلسة اليوم على مؤشر EGX 30 عند 34,120 (+0.85%).
+
+أعلى الرابحين: COMI +3.2% · SWDY +2.1%
+أعلى الخاسرين: TMGH -1.8% · EGBE -1.2%
+
+تابع السوق والمحفظة لحظة بلحظة في تطبيق ثروة 📈
+
+حمّل التطبيق:
+https://thrwa.co/download/android
+https://thrwa.co/download/ios
+
+#ثروة #thrwa #البورصة_المصرية #EGX

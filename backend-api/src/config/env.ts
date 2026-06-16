@@ -169,6 +169,35 @@ const envSchema = z.object({
   SIM_MAX_QUOTE_AGE_SEC: z.coerce.number().int().min(60).max(86_400).default(300),
   /** Firebase service account JSON (stringified) for FCM — required to send push from admin. */
   FCM_SERVICE_ACCOUNT_JSON: z.string().min(20).optional(),
+  /** Meta (Facebook) app id for admin OAuth to connect Page + Instagram. */
+  META_APP_ID: z.string().min(5).optional(),
+  /** Meta app secret — server only. */
+  META_APP_SECRET: z.string().min(8).optional(),
+  /** OAuth redirect URI registered in Meta app (must hit backend callback route). */
+  META_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  /** Directory containing social SVG templates (defaults to backend assets copy). */
+  SOCIAL_TEMPLATES_DIR: z.string().min(1).default('./assets/social-templates'),
+  /** Public origin for temporary social images (Instagram requires image_url). */
+  SOCIAL_PUBLIC_FILES_ORIGIN: z.string().url().optional(),
+  /** Default Android download link in captions. */
+  SOCIAL_PLAY_STORE_URL: z.string().url().default('https://thrwa.co/download/android'),
+  /** Default iOS download link in captions. */
+  SOCIAL_APP_STORE_URL: z.string().url().default('https://thrwa.co/download/ios'),
+  /** Automated Facebook / Instagram posting job. */
+  SOCIAL_POST_ENABLED: z
+    .string()
+    .optional()
+    .default('true')
+    .transform((s) => s.toLowerCase() !== 'false' && s !== '0'),
+  SOCIAL_POST_CHECK_INTERVAL_SEC: z.coerce.number().int().min(30).max(3600).default(60),
+  SOCIAL_POST_LEADER_TTL_SEC: z.coerce.number().int().min(30).max(600).default(120),
+  /** Cairo local hour/minute defaults when schedules are unset in DB integration config. */
+  SOCIAL_GOLD_DAILY_HOUR: z.coerce.number().int().min(0).max(23).default(10),
+  SOCIAL_GOLD_DAILY_MINUTE: z.coerce.number().int().min(0).max(59).default(0),
+  SOCIAL_EGX_CLOSE_HOUR: z.coerce.number().int().min(0).max(23).default(15),
+  SOCIAL_EGX_CLOSE_MINUTE: z.coerce.number().int().min(0).max(59).default(15),
+  /** Gold alert when 21k drops this % from Cairo-day open (e.g. 10 = 10%). */
+  SOCIAL_GOLD_ALERT_DROP_PCT: z.coerce.number().min(1).max(50).default(10),
   /** Comma-separated Google OAuth client IDs (Web + iOS + Android) allowed as `aud` on ID tokens. */
   GOOGLE_OAUTH_CLIENT_IDS: z
     .string()

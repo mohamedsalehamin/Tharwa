@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080" fill="none">
+  <defs>
+    <style type="text/css"><![CDATA[
+      @font-face {
+        font-family: 'Cairo';
+        src: url('fonts/Cairo_400Regular.ttf') format('truetype');
+        font-weight: 400;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Cairo';
+        src: url('fonts/Cairo_500Medium.ttf') format('truetype');
+        font-weight: 500;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Cairo';
+        src: url('fonts/Cairo_600SemiBold.ttf') format('truetype');
+        font-weight: 600;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Cairo';
+        src: url('fonts/Cairo_700Bold.ttf') format('truetype');
+        font-weight: 700;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Cairo';
+        src: url('fonts/Cairo_800ExtraBold.ttf') format('truetype');
+        font-weight: 800;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Cairo';
+        src: url('fonts/Cairo_900Black.ttf') format('truetype');
+        font-weight: 900;
+        font-style: normal;
+      }
+      text, tspan { font-family: 'Cairo', sans-serif; }
+    ]]></style>
+  </defs>
+
+  <rect width="1080" height="1080" fill="#14253f"/>
+  <rect x="0" y="0" width="1080" height="6" fill="#C9A227"/>
+
+  <!-- Header -->
+  <image href="tharwa-logo.png" x="72" y="56" width="80" height="80" preserveAspectRatio="xMidYMid meet"/>
+  <text x="1008" y="96" text-anchor="end" font-family="Cairo" font-size="46" font-weight="800" fill="#FFFFFF">&#x623;&#x633;&#x639;&#x627;&#x631; &#x627;&#x644;&#x630;&#x647;&#x628; &#x627;&#x644;&#x622;&#x646;</text>
+  <text x="1008" y="132" text-anchor="end" font-family="Cairo" font-size="22" font-weight="700" fill="#C9A227">{{DATE_AR}}</text>
+
+  <!-- Change headline -->
+  <text x="540" y="200" text-anchor="middle" font-family="Cairo" font-size="24" font-weight="700" fill="{{CHANGE_COLOR}}">{{CHANGE_HEADLINE}}</text>
+
+  <!-- Table headers -->
+  <g transform="translate(72, 230)">
+    <rect x="0" y="0" width="468" height="64" fill="#FFFFFF"/>
+    <text x="234" y="42" text-anchor="middle" font-family="Cairo" font-size="20" font-weight="800" fill="#0A1A2F">&#x633;&#x639;&#x631; &#x627;&#x644;&#x634;&#x631;&#x627;&#x621; (&#x628;&#x627;&#x644;&#x62C;&#x646;&#x64A;&#x647; &#x627;&#x644;&#x645;&#x635;&#x631;&#x64A;)</text>
+    <rect x="468" y="0" width="468" height="64" fill="#C9A227"/>
+    <text x="702" y="42" text-anchor="middle" font-family="Cairo" font-size="24" font-weight="800" fill="#FFFFFF">&#x627;&#x644;&#x639;&#x64A;&#x627;&#x631;</text>
+  </g>
+
+  <!-- Table rows -->
+  <g transform="translate(0, 294)">
+
+    <g transform="translate(0, 0)">
+      <line x1="72" y1="0" x2="1008" y2="0" stroke="#C9A227" stroke-width="1" opacity="0.55"/>
+      <text x="936" y="52" text-anchor="end" font-family="Cairo" font-size="28" font-weight="700" fill="#FFFFFF">&#x639;&#x64A;&#x627;&#x631; 24</text>
+      <text x="144" y="52" text-anchor="start" font-family="Cairo" font-size="32" font-weight="800" fill="#FFFFFF">{{GOLD_24}}</text>
+    </g>
+
+    <g transform="translate(0, 72)">
+      <line x1="72" y1="0" x2="1008" y2="0" stroke="#C9A227" stroke-width="1" opacity="0.55"/>
+      <text x="936" y="52" text-anchor="end" font-family="Cairo" font-size="28" font-weight="700" fill="#FFFFFF">&#x639;&#x64A;&#x627;&#x631; 21</text>
+      <text x="144" y="52" text-anchor="start" font-family="Cairo" font-size="32" font-weight="800" fill="#FFFFFF">{{GOLD_21}}</text>
+    </g>
+
+    <g transform="translate(0, 144)">
+      <line x1="72" y1="0" x2="1008" y2="0" stroke="#C9A227" stroke-width="1" opacity="0.55"/>
+      <text x="936" y="52" text-anchor="end" font-family="Cairo" font-size="28" font-weight="700" fill="#FFFFFF">&#x639;&#x64A;&#x627;&#x631; 18</text>
+      <text x="144" y="52" text-anchor="start" font-family="Cairo" font-size="32" font-weight="800" fill="#FFFFFF">{{GOLD_18}}</text>
+    </g>
+
+    <g transform="translate(0, 216)">
+      <line x1="72" y1="0" x2="1008" y2="0" stroke="#C9A227" stroke-width="1" opacity="0.55"/>
+      <text x="936" y="52" text-anchor="end" font-family="Cairo" font-size="28" font-weight="700" fill="#FFFFFF">&#x62C;&#x646;&#x64A;&#x647; &#x630;&#x647;&#x628;</text>
+      <text x="144" y="52" text-anchor="start" font-family="Cairo" font-size="32" font-weight="800" fill="#FFFFFF">{{GOLD_POUND}}</text>
+    </g>
+
+    <g transform="translate(0, 288)">
+      <line x1="72" y1="0" x2="1008" y2="0" stroke="#C9A227" stroke-width="1" opacity="0.55"/>
+      <text x="936" y="52" text-anchor="end" font-family="Cairo" font-size="28" font-weight="700" fill="#FFFFFF">&#x623;&#x648;&#x646;&#x635;&#x629; &#x627;&#x644;&#x630;&#x647;&#x628;</text>
+      <text x="144" y="52" text-anchor="start" font-family="Cairo" font-size="32" font-weight="800" fill="#FFFFFF">{{GOLD_OUNCE}}</text>
+    </g>
+  </g>
+
+
+  <!-- CTA -->
+  <g transform="translate(72, 780)">
+    <rect x="0" y="0" width="936" height="88" rx="44" fill="#C9A227"/>
+    <text x="468" y="54" text-anchor="middle" font-family="Cairo" font-size="30" font-weight="800" fill="#0A1A2F">&#x62D;&#x645;&#x651;&#x644; &#x62A;&#x637;&#x628;&#x64A;&#x642; &#x62B;&#x631;&#x648;&#x629; &#x627;&#x644;&#x622;&#x646;</text>
+  </g>
+
+  <text x="540" y="920" text-anchor="middle" font-family="Cairo" font-size="22" font-weight="700" fill="#C9A227">#&#x627;&#x633;&#x639;&#x627;&#x631;_&#x627;&#x644;&#x630;&#x647;&#x628;_&#x645;&#x646;_&#x62B;&#x631;&#x648;&#x629;</text>
+</svg>

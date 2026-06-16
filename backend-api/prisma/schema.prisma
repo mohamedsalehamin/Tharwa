@@ -855,3 +855,39 @@ model EquityListMember {
   @@index([symbol])
   @@map("equity_list_members")
 }
+
+enum SocialPostTemplate {
+  gold_daily
+  gold_alert
+  egx_close
+}
+
+enum SocialPostChannel {
+  facebook
+  instagram
+}
+
+enum SocialPostStatus {
+  published
+  failed
+  skipped
+}
+
+/// Automated or manual Facebook / Instagram post attempts.
+model SocialPostRun {
+  id             String             @id @default(uuid())
+  template       SocialPostTemplate
+  channel        SocialPostChannel
+  status         SocialPostStatus
+  caption        String?
+  externalPostId String?            @map("external_post_id")
+  errorMessage   String?            @map("error_message")
+  triggeredBy    String             @map("triggered_by")
+  cairoDateKey   String             @map("cairo_date_key")
+  postedAt       DateTime?          @map("posted_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  @@index([cairoDateKey, template, channel])
+  @@index([createdAt(sort: Desc)])
+  @@map("social_post_runs")
+}

@@ -93,13 +93,15 @@ export async function fetchMetaPages(userAccessToken: string): Promise<MetaPageO
     fields: 'id,name,access_token,instagram_business_account{id,username}',
   });
 
-  return (data.data ?? []).map((p) => ({
-    pageId: p.id,
-    pageName: p.name,
-    pageAccessToken: p.access_token,
-    igUserId: p.instagram_business_account?.id ?? null,
-    igUsername: p.instagram_business_account?.username ?? null,
-  }));
+  return (data.data ?? [])
+    .map((p) => ({
+      pageId: p.id,
+      pageName: p.name,
+      pageAccessToken: p.access_token ?? '',
+      igUserId: p.instagram_business_account?.id ?? null,
+      igUsername: p.instagram_business_account?.username ?? null,
+    }))
+    .filter((p) => p.pageId && p.pageName);
 }
 
 export async function publishFacebookPhoto(args: {

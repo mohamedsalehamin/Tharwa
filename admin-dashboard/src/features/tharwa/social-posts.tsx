@@ -49,6 +49,7 @@ export function SocialPostsPanel() {
   const [saveLoading, setSaveLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
   const [pages, setPages] = useState<MetaPageOption[]>([])
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(null)
   const [actionErr, setActionErr] = useState<string | null>(null)
 
   const [pageId, setPageId] = useState('')
@@ -85,6 +86,7 @@ export function SocialPostsPanel() {
     if (!meta) return
     setPageId(meta.pageId)
     setPageName(meta.pageName)
+    setSelectedPageId(meta.pageId)
     setIgUserId(meta.igUserId ?? '')
     setIgUsername(meta.igUsername ?? '')
     setPublishFacebook(meta.publishFacebook)
@@ -101,14 +103,72 @@ export function SocialPostsPanel() {
 
   const err = actionErr ?? (statusErr instanceof Error ? statusErr.message : null)
 
+  function buildMetaPayload(overrides?: {
+    pageId?: string
+    pageName?: string
+    pageAccessToken?: string
+    igUserId?: string | null
+    igUsername?: string | null
+  }) {
+    return {
+      pageId: overrides?.pageId ?? pageId,
+      pageName: overrides?.pageName ?? pageName,
+      pageAccessToken: overrides?.pageAccessToken ?? pageAccessToken,
+      igUserId: (overrides?.igUserId ?? igUserId) || null,
+      igUsername: (overrides?.igUsername ?? igUsername) || null,
+      publishFacebook,
+      publishInstagram,
+      schedules: {
+        goldDaily: {
+          enabled: goldDailyEnabled,
+          hour: Number(goldDailyHour),
+          minute: Number(goldDailyMinute),
+        },
+        egxClose: {
+          enabled: egxCloseEnabled,
+          hour: Number(egxCloseHour),
+          minute: Number(egxCloseMinute),
+        },
+        goldAlert: {
+          enabled: goldAlertEnabled,
+          dropPct: Number(goldAlertDropPct),
+        },
+      },
+    }
+  }
+
   async function loadOAuthPages() {
     if (!token) return
-    const res = await adminFetch<{ pages: MetaPageOption[] }>(
-      '/admin/v1/social/meta/oauth/pages',
-      token,
-    )
-    setPages(res.pages)
+    setActionErr(null)
+    try {
+      const res = await adminFetch<{ pages: MetaPageOption[] }>(
+        '/admin/v1/social/meta/oauth/pages',
+        token,
+      )
+      setPages(res.pages)
+      if (res.pages.length === 0) {
+        toast.message('No pages yet — complete Facebook login, then refresh again')
+        return
+      }
+      if (res.pages.length === 1) {
+        await connectPage(res.pages[0]!)
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setActionErr(msg)
+      toast.error(msg)
+    }
   }
+
+  useEffect(() => {
+    if (!token || !canManage) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('oauth') !== 'ok') return
+    params.delete('oauth')
+    const qs = params.toString()
+    window.history.replaceState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`)
+    void loadOAuthPages()
+  }, [token, canManage])
 
   async function startOAuth() {
     if (!token || !canManage) return
@@ -135,43 +195,43 @@ export function SocialPostsPanel() {
     setPageId(page.pageId)
     setPageName(page.pageName)
     setPageAccessToken(page.pageAccessToken)
+    setSelectedPageId(page.pageId)
     setIgUserId(page.igUserId ?? '')
     setIgUsername(page.igUsername ?? '')
   }
 
-  async function saveMeta() {
+  async function connectPage(page: MetaPageOption) {
     if (!token || !canManage) return
+    applyPage(page)
+    if (!page.pageAccessToken || page.pageAccessToken.length < 20) {
+      setActionErr('Facebook did not return a page token. Paste a Page access token manually, then Save.')
+      toast.error('Missing page token from Facebook — paste it manually')
+      return
+    }
+    await saveMetaPayload(buildMetaPayload({
+      pageId: page.pageId,
+      pageName: page.pageName,
+      pageAccessToken: page.pageAccessToken,
+      igUserId: page.igUserId,
+      igUsername: page.igUsername,
+    }))
+  }
+
+  async function saveMetaPayload(payload: ReturnType<typeof buildMetaPayload>) {
+    if (!token || !canManage) return
+    if (!payload.pageId.trim() || !payload.pageName.trim()) {
+      const msg = 'Select a Facebook Page from OAuth first, or fill Page ID and name.'
+      setActionErr(msg)
+      toast.error(msg)
+      return
+    }
     setSaveLoading(true)
     setActionErr(null)
     try {
       await adminFetch('/admin/v1/social/meta', token, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pageId,
-          pageName,
-          pageAccessToken,
-          igUserId: igUserId || null,
-          igUsername: igUsername || null,
-          publishFacebook,
-          publishInstagram,
-          schedules: {
-            goldDaily: {
-              enabled: goldDailyEnabled,
-              hour: Number(goldDailyHour),
-              minute: Number(goldDailyMinute),
-            },
-            egxClose: {
-              enabled: egxCloseEnabled,
-              hour: Number(egxCloseHour),
-              minute: Number(egxCloseMinute),
-            },
-            goldAlert: {
-              enabled: goldAlertEnabled,
-              dropPct: Number(goldAlertDropPct),
-            },
-          },
-        }),
+        body: JSON.stringify(payload),
       })
       toast.success('Meta connection saved')
       await queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
@@ -183,6 +243,10 @@ export function SocialPostsPanel() {
     } finally {
       setSaveLoading(false)
     }
+  }
+
+  async function saveMeta() {
+    await saveMetaPayload(buildMetaPayload())
   }
 
   async function disconnectMeta() {
@@ -287,10 +351,17 @@ export function SocialPostsPanel() {
 
             {pages.length > 0 ? (
               <div className='grid gap-2'>
-                <Label>Pages from OAuth</Label>
+                <Label>Pages from OAuth — click to connect</Label>
                 <div className='flex flex-wrap gap-2'>
                   {pages.map((p) => (
-                    <Button key={p.pageId} type='button' size='sm' variant='secondary' onClick={() => applyPage(p)}>
+                    <Button
+                      key={p.pageId}
+                      type='button'
+                      size='sm'
+                      variant={selectedPageId === p.pageId ? 'default' : 'secondary'}
+                      disabled={saveLoading}
+                      onClick={() => void connectPage(p)}
+                    >
                       {p.pageName}
                       {p.igUsername ? ` · @${p.igUsername}` : ''}
                     </Button>
@@ -315,7 +386,7 @@ export function SocialPostsPanel() {
                   type='password'
                   value={pageAccessToken}
                   onChange={(e) => setPageAccessToken(e.target.value)}
-                  placeholder={status?.meta?.tokenPreview ? `Saved ${status.meta.tokenPreview}` : 'EAA…'}
+                  placeholder={status?.meta?.tokenPreview ? `Saved ${status.meta.tokenPreview} — paste to replace` : 'EAA… paste Page access token'}
                   disabled={!canManage}
                 />
               </div>

@@ -31,7 +31,7 @@ const templateSchema = z.enum(['gold_daily', 'gold_alert', 'egx_close']);
 const metaSaveBody = z.object({
   pageId: z.string().min(1),
   pageName: z.string().min(1),
-  pageAccessToken: z.string().min(20),
+  pageAccessToken: z.string().optional(),
   igUserId: z.string().min(1).nullable().optional(),
   igUsername: z.string().min(1).nullable().optional(),
   publishFacebook: z.boolean().default(true),
@@ -67,8 +67,8 @@ const publishBody = z.object({
 
 const OAUTH_STATE_PREFIX = 'social:meta-oauth:';
 
-function oauthResultHtml(adminOrigin: string, title: string, body: string): string {
-  const socialUrl = `${adminOrigin.replace(/\/$/, '')}/social`;
+function oauthResultHtml(adminOrigin: string, title: string, body: string, query = ''): string {
+  const socialUrl = `${adminOrigin.replace(/\/$/, '')}/social${query ? `?${query}` : ''}`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>${title}</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;max-width:40rem"><h1>${title}</h1><p>${body}</p><p><a href="${socialUrl}">Return to Social posts</a></p><script>setTimeout(()=>window.close(),8000)</script></body></html>`;
 }
 
@@ -113,7 +113,24 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
       const parsed = metaSaveBody.safeParse(req.body);
       if (!parsed.success) throw new AppError('VALIDATION', zodMessage(parsed.error), 400);
 
-      const publicInfo = await upsertMetaSocialConfig(admin.id, parsed.data, ctx().env);
+      const existing = await getMetaSocialConfig(ctx().env);
+      let pageAccessToken = parsed.data.pageAccessToken?.trim() ?? '';
+      if (pageAccessToken.length < 20 && existing?.pageId === parsed.data.pageId) {
+        pageAccessToken = existing.pageAccessToken;
+      }
+      if (pageAccessToken.length < 20) {
+        throw new AppError(
+          'VALIDATION',
+          'Page access token is required. Select a Page from OAuth or paste a token manually.',
+          400,
+        );
+      }
+
+      const publicInfo = await upsertMetaSocialConfig(
+        admin.id,
+        { ...parsed.data, pageAccessToken },
+        ctx().env,
+      );
       await writeAdminAudit(
         admin.id,
         'admin.social.meta.save',
@@ -215,6 +232,7 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
             adminOrigin,
             'Facebook connected',
             `Return to the admin dashboard and pick a Facebook Page (${pages.length} found).`,
+            'oauth=ok',
           ),
         );
       }

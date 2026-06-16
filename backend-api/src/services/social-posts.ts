@@ -55,7 +55,7 @@ export async function previewSocialPost(
   let pngBase64: string | null = null;
   let pngError: string | null = null;
   try {
-    pngBase64 = renderSvgToPng(svg).toString('base64');
+    pngBase64 = renderSvgToPng(svg, env).toString('base64');
   } catch (e) {
     pngError = e instanceof Error ? e.message : String(e);
   }
@@ -103,7 +103,7 @@ export async function publishSocialPost(args: {
 
   const svgTemplate = await loadSocialTemplateSvg(args.env, args.template);
   const svg = fillTemplate(svgTemplate, content.vars);
-  const png = renderSvgToPng(svg);
+  const png = renderSvgToPng(svg, args.env);
   const image = await writePublicSocialImage(args.env, png);
 
   const results: SocialPublishResult['results'] = [];

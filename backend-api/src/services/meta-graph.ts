@@ -49,9 +49,10 @@ export type MetaPageOption = {
 export function buildMetaOAuthScopes(env: Env): string {
   const custom = env.META_OAUTH_SCOPES?.trim();
   if (custom) return custom;
-  // Facebook Page scopes only — Instagram scopes fail until the Meta app adds the
-  // "Instagram API" use case. Page tokens can still publish to linked IG accounts.
-  return ['pages_show_list', 'pages_manage_posts', 'business_management'].join(',');
+  // Minimal scope — Meta auto-bundles pages_read_engagement with pages_manage_posts
+  // and fails OAuth when that permission is not enabled on the app use case.
+  // Page access tokens from /me/accounts may still allow posting for page admins.
+  return 'pages_show_list';
 }
 
 export function buildMetaOAuthUrl(env: Env, state: string): string {

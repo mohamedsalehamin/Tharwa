@@ -7,6 +7,7 @@ import { adminBearerPreHandler } from '../../plugins/admin-bearer.js';
 import { requireSuperadmin } from '../../plugins/admin-role.js';
 import { writeAdminAudit } from '../../services/admin-audit.js';
 import {
+  buildMetaOAuthScopes,
   buildMetaOAuthUrl,
   exchangeMetaOAuthCode,
   fetchMetaPages,
@@ -65,6 +66,11 @@ const publishBody = z.object({
 });
 
 const OAUTH_STATE_PREFIX = 'social:meta-oauth:';
+
+function oauthResultHtml(adminOrigin: string, title: string, body: string): string {
+  const socialUrl = `${adminOrigin.replace(/\/$/, '')}/social`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>${title}</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;max-width:40rem"><h1>${title}</h1><p>${body}</p><p><a href="${socialUrl}">Return to Social posts</a></p><script>setTimeout(()=>window.close(),8000)</script></body></html>`;
+}
 
 function zodMessage(err: z.ZodError): string {
   return err.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
@@ -139,17 +145,15 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
       const state = randomUUID();
       await ctx().redis.set(`${OAUTH_STATE_PREFIX}${state}`, req.admin!.id, 'EX', 600);
       const url = buildMetaOAuthUrl(ctx().env, state);
-      return reply.send({ url, state });
+      const scopes = buildMetaOAuthScopes(ctx().env);
+      return reply.send({ url, state, scopes });
     } catch (e) {
       if (!reply.sent) sendError(reply, e);
     }
   });
 
-function oauthResultHtml(title: string, body: string): string {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>${title}</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;max-width:40rem"><h1>${title}</h1><p>${body}</p><p><a href="/social/">Return to Social posts</a></p><script>setTimeout(()=>window.close(),8000)</script></body></html>`;
-}
-
   app.get('/social/meta/oauth/callback', async (req, reply) => {
+    const adminOrigin = ctx().env.ADMIN_PUBLIC_ORIGIN;
     try {
       const raw = req.query as Record<string, unknown>;
       const oauthError =
@@ -167,8 +171,9 @@ function oauthResultHtml(title: string, body: string): string {
           .type('text/html')
           .send(
             oauthResultHtml(
+              adminOrigin,
               'Facebook connection failed',
-              `Meta returned: ${message}. If scopes are invalid, connect with Facebook-only scopes or paste a Page access token manually in Social posts.`,
+              `Meta returned: ${message}. Try again after deploy, or paste a Page access token manually in Social posts.`,
             ),
           );
       }
@@ -182,14 +187,14 @@ function oauthResultHtml(title: string, body: string): string {
       if (!query.success) {
         return reply
           .type('text/html')
-          .send(oauthResultHtml('Facebook connection failed', 'Missing OAuth code or state.'));
+          .send(oauthResultHtml(adminOrigin, 'Facebook connection failed', 'Missing OAuth code or state.'));
       }
 
       const adminId = await ctx().redis.get(`${OAUTH_STATE_PREFIX}${query.data.state}`);
       if (!adminId) {
         return reply
           .type('text/html')
-          .send(oauthResultHtml('Facebook connection failed', 'Invalid or expired OAuth state.'));
+          .send(oauthResultHtml(adminOrigin, 'Facebook connection failed', 'Invalid or expired OAuth state.'));
       }
       await ctx().redis.del(`${OAUTH_STATE_PREFIX}${query.data.state}`);
 
@@ -207,6 +212,7 @@ function oauthResultHtml(title: string, body: string): string {
       if (accept.includes('text/html')) {
         return reply.type('text/html').send(
           oauthResultHtml(
+            adminOrigin,
             'Facebook connected',
             `Return to the admin dashboard and pick a Facebook Page (${pages.length} found).`,
           ),
@@ -218,7 +224,7 @@ function oauthResultHtml(title: string, body: string): string {
       if (!reply.sent) {
         return reply
           .type('text/html')
-          .send(oauthResultHtml('Facebook connection failed', message));
+          .send(oauthResultHtml(adminOrigin, 'Facebook connection failed', message));
       }
     }
   });

@@ -16,6 +16,49 @@ const CAPTION_FILES: Record<SocialTemplateKey, string> = {
   egx_close: 'caption-egx-close.example.txt',
 };
 
+const RASTER_IMAGE_RE = /href="([^"]+\.(?:png|jpe?g|gif))"/gi;
+
+function mimeForRasterImage(filePath: string): string {
+  const ext = path.extname(filePath).slice(1).toLowerCase();
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  return 'image/jpeg';
+}
+
+function resolveRasterImagePath(href: string, templatesDir: string): string | null {
+  if (
+    href.startsWith('data:') ||
+    href.startsWith('http://') ||
+    href.startsWith('https://')
+  ) {
+    return null;
+  }
+  if (href.startsWith('file://')) return href.slice('file://'.length);
+  return path.join(templatesDir, href);
+}
+
+/** resvg cannot load local file:// images; inline PNG/JPEG/GIF assets as data URIs. */
+async function embedRasterImages(svg: string, templatesDir: string): Promise<string> {
+  const hrefs = [...svg.matchAll(RASTER_IMAGE_RE)].map((match) => match[1]!);
+  if (hrefs.length === 0) return svg;
+
+  const dataUriByHref = new Map<string, string>();
+  for (const href of hrefs) {
+    if (dataUriByHref.has(href)) continue;
+    const abs = resolveRasterImagePath(href, templatesDir);
+    if (!abs) continue;
+    const bytes = await fs.readFile(abs);
+    const dataUri = `data:${mimeForRasterImage(abs)};base64,${bytes.toString('base64')}`;
+    dataUriByHref.set(href, dataUri);
+  }
+
+  let out = svg;
+  for (const [href, dataUri] of dataUriByHref) {
+    out = out.replaceAll(`href="${href}"`, `href="${dataUri}"`);
+  }
+  return out;
+}
+
 export function resolveSocialTemplatesDir(env: Env): string {
   return path.resolve(env.SOCIAL_TEMPLATES_DIR);
 }
@@ -27,6 +70,7 @@ export async function loadSocialTemplateSvg(
   const dir = resolveSocialTemplatesDir(env);
   const filePath = path.join(dir, TEMPLATE_FILES[template]);
   let svg = await fs.readFile(filePath, 'utf8');
+  svg = await embedRasterImages(svg, dir);
   svg = rewriteAssetPaths(svg, dir);
   return svg;
 }
@@ -40,7 +84,7 @@ export async function loadSocialCaptionTemplate(
   return fs.readFile(filePath, 'utf8');
 }
 
-/** Resolve relative font/logo paths so resvg can load them. */
+/** Resolve relative font paths so resvg can load them. */
 function rewriteAssetPaths(svg: string, templatesDir: string): string {
   const toFileUrl = (rel: string) => {
     const abs = path.join(templatesDir, rel).replace(/\\/g, '/');

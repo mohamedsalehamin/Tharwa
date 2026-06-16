@@ -48,6 +48,7 @@ export function SocialPostsPanel() {
   const [publishLoading, setPublishLoading] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
+  const [detectLoading, setDetectLoading] = useState(false)
   const [pages, setPages] = useState<MetaPageOption[]>([])
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null)
   const [actionErr, setActionErr] = useState<string | null>(null)
@@ -220,6 +221,46 @@ export function SocialPostsPanel() {
     }))
   }
 
+  async function detectInstagram() {
+    if (!token || !canManage) return
+    setDetectLoading(true)
+    setActionErr(null)
+    try {
+      const result = await adminFetch<{
+        igUserId: string | null
+        igUsername: string | null
+        error: string | null
+        updated: boolean
+        hint?: string
+        meta?: SocialStatusResponse['meta']
+      }>('/admin/v1/social/meta/detect-instagram', token, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (result.igUserId) {
+        setIgUserId(result.igUserId)
+        setIgUsername(result.igUsername ?? '')
+        toast.success(
+          result.updated
+            ? `Instagram linked: @${result.igUsername ?? result.igUserId}`
+            : `Found @${result.igUsername ?? result.igUserId} — click Save to store`,
+        )
+        await queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
+      } else {
+        const msg = result.hint ?? result.error ?? 'Could not detect Instagram account'
+        setActionErr(msg)
+        toast.error(msg)
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setActionErr(msg)
+      toast.error(msg)
+    } finally {
+      setDetectLoading(false)
+    }
+  }
+
   async function saveMetaPayload(payload: ReturnType<typeof buildMetaPayload>) {
     if (!token || !canManage) return
     if (!payload.pageId.trim() || !payload.pageName.trim()) {
@@ -338,6 +379,12 @@ export function SocialPostsPanel() {
                 ? `Connected to ${status.meta?.pageName ?? 'Page'}`
                 : 'Not connected — OAuth or paste a Page access token'}
               {status?.oauthAvailable ? ' · OAuth available' : ' · OAuth env not set (manual token only)'}
+              {status?.oauthScopes ? (
+                <>
+                  {' '}
+                  · Scopes: <span className='font-mono text-xs'>{status.oauthScopes}</span>
+                </>
+              ) : null}
             </CardDescription>
           </CardHeader>
           <CardContent className='grid gap-4'>
@@ -348,6 +395,14 @@ export function SocialPostsPanel() {
                 </Button>
                 <Button type='button' variant='outline' onClick={() => void loadOAuthPages()}>
                   Refresh pages
+                </Button>
+                <Button
+                  type='button'
+                  variant='outline'
+                  disabled={detectLoading || !status?.configured}
+                  onClick={() => void detectInstagram()}
+                >
+                  Detect Instagram
                 </Button>
               </div>
             ) : null}
@@ -376,10 +431,12 @@ export function SocialPostsPanel() {
             {publishInstagram && !igUserId ? (
               <Alert>
                 <AlertDescription>
-                  Instagram publishing is on, but no business account is linked to this Facebook Page.
-                  In Meta Business Suite open the Page → Settings → Linked accounts → Instagram, connect
-                  @thrwa.co, then click Refresh pages and Save. Or turn off Publish to Instagram to post
-                  on Facebook only.
+                  Instagram is linked in Meta Business Suite, but this app&apos;s Facebook token cannot read it yet.
+                  Meta requires <span className='font-mono text-xs'>pages_read_engagement</span> and Instagram
+                  permissions — not just <span className='font-mono text-xs'>pages_show_list</span>. After deploying
+                  the latest API: click <strong>Disconnect</strong>, then <strong>Connect with Facebook</strong> again
+                  (approve all requested permissions), pick the Thrwa Page, and click <strong>Detect Instagram</strong>.
+                  Ensure the Instagram use case is enabled in your Meta App Dashboard.
                 </AlertDescription>
               </Alert>
             ) : null}

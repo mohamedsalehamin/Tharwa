@@ -11,7 +11,7 @@ import {
   buildMetaOAuthUrl,
   exchangeMetaOAuthCode,
   fetchMetaPages,
-  INSTAGRAM_NOT_LINKED_MESSAGE,
+  instagramResolutionHint,
   resolvePageInstagramAccount,
 } from '../../services/meta-graph.js';
 import {
@@ -97,6 +97,7 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
       return reply.send({
         configured: config != null,
         oauthAvailable: isMetaOAuthConfigured(ctx().env),
+        oauthScopes: buildMetaOAuthScopes(ctx().env),
         meta: config ? metaSocialPublicFromConfig(config, ctx().env) : null,
         brand: {
           website: 'https://thrwa.co',
@@ -130,13 +131,23 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
 
       let igUserId = parsed.data.igUserId ?? null;
       let igUsername = parsed.data.igUsername ?? null;
+      let igResolutionError: string | null = null;
       if (!igUserId) {
         const resolved = await resolvePageInstagramAccount(parsed.data.pageId, pageAccessToken);
         igUserId = resolved.igUserId;
         igUsername = resolved.igUsername ?? igUsername;
+        igResolutionError = resolved.error;
       }
       if (parsed.data.publishInstagram && !igUserId) {
-        throw new AppError('VALIDATION', INSTAGRAM_NOT_LINKED_MESSAGE, 400);
+        throw new AppError(
+          'VALIDATION',
+          instagramResolutionHint({
+            igUserId: null,
+            igUsername: null,
+            error: igResolutionError,
+          }),
+          400,
+        );
       }
 
       const publicInfo = await upsertMetaSocialConfig(
@@ -267,6 +278,75 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
       if (!raw) return reply.send({ pages: [] });
       const parsed = JSON.parse(raw) as { pages: Awaited<ReturnType<typeof fetchMetaPages>> };
       return reply.send({ pages: parsed.pages ?? [] });
+    } catch (e) {
+      if (!reply.sent) sendError(reply, e);
+    }
+  });
+
+  app.post('/social/meta/detect-instagram', { ...superadminGuard }, async (req, reply) => {
+    try {
+      const admin = req.admin!;
+      const body = z
+        .object({
+          pageId: z.string().min(1).optional(),
+          pageAccessToken: z.string().min(20).optional(),
+        })
+        .safeParse(req.body ?? {});
+
+      const existing = await getMetaSocialConfig(ctx().env);
+      const pageId = body.success ? (body.data.pageId ?? existing?.pageId) : existing?.pageId;
+      let pageAccessToken = body.success
+        ? (body.data.pageAccessToken?.trim() ?? '')
+        : '';
+      if (pageAccessToken.length < 20 && existing && existing.pageId === pageId) {
+        pageAccessToken = existing.pageAccessToken;
+      }
+      if (!pageId || pageAccessToken.length < 20) {
+        throw new AppError(
+          'VALIDATION',
+          'Save a Facebook Page connection first, or pass pageId and pageAccessToken.',
+          400,
+        );
+      }
+
+      const resolution = await resolvePageInstagramAccount(pageId, pageAccessToken);
+      if (!resolution.igUserId) {
+        return reply.send({
+          ...resolution,
+          updated: false,
+          hint: instagramResolutionHint(resolution),
+        });
+      }
+
+      if (!existing || existing.pageId !== pageId) {
+        return reply.send({
+          ...resolution,
+          updated: false,
+          hint: 'Instagram account found. Select this Page from OAuth and Save to store it.',
+        });
+      }
+
+      const publicInfo = await upsertMetaSocialConfig(
+        admin.id,
+        {
+          ...existing,
+          pageAccessToken,
+          igUserId: resolution.igUserId,
+          igUsername: resolution.igUsername,
+        },
+        ctx().env,
+      );
+      await writeAdminAudit(
+        admin.id,
+        'admin.social.meta.detect_instagram',
+        { pageId, igUserId: resolution.igUserId },
+        clientIp(req),
+      );
+      return reply.send({
+        ...resolution,
+        updated: true,
+        meta: publicInfo,
+      });
     } catch (e) {
       if (!reply.sent) sendError(reply, e);
     }

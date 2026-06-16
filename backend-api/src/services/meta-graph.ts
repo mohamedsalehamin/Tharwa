@@ -46,13 +46,14 @@ export type MetaPageOption = {
   igUsername: string | null;
 };
 
+/** Scopes required to read instagram_business_account and publish to Instagram. */
+export const META_OAUTH_SCOPES_DEFAULT =
+  'pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish';
+
 export function buildMetaOAuthScopes(env: Env): string {
   const custom = env.META_OAUTH_SCOPES?.trim();
   if (custom) return custom;
-  // Minimal scope — Meta auto-bundles pages_read_engagement with pages_manage_posts
-  // and fails OAuth when that permission is not enabled on the app use case.
-  // Page access tokens from /me/accounts may still allow posting for page admins.
-  return 'pages_show_list';
+  return META_OAUTH_SCOPES_DEFAULT;
 }
 
 export function buildMetaOAuthUrl(env: Env, state: string): string {
@@ -80,12 +81,22 @@ export async function exchangeMetaOAuthCode(
   return data.access_token;
 }
 
+export type PageInstagramResolution = {
+  igUserId: string | null;
+  igUsername: string | null;
+  error: string | null;
+};
+
 export async function resolvePageInstagramAccount(
   pageId: string,
   pageAccessToken: string,
-): Promise<{ igUserId: string | null; igUsername: string | null }> {
+): Promise<PageInstagramResolution> {
   if (!pageId || pageAccessToken.length < 20) {
-    return { igUserId: null, igUsername: null };
+    return {
+      igUserId: null,
+      igUsername: null,
+      error: 'Page ID and access token are required',
+    };
   }
   try {
     const data = await graphGet<{
@@ -94,22 +105,39 @@ export async function resolvePageInstagramAccount(
       access_token: pageAccessToken,
       fields: 'instagram_business_account{id,username}',
     });
-    return {
-      igUserId: data.instagram_business_account?.id ?? null,
-      igUsername: data.instagram_business_account?.username ?? null,
-    };
-  } catch {
-    return { igUserId: null, igUsername: null };
+    const igUserId = data.instagram_business_account?.id ?? null;
+    const igUsername = data.instagram_business_account?.username ?? null;
+    if (!igUserId) {
+      return {
+        igUserId: null,
+        igUsername: null,
+        error:
+          'Meta returned no instagram_business_account for this Page. Confirm @thrwa.co is linked in Page settings, then reconnect Facebook so the token includes pages_read_engagement.',
+      };
+    }
+    return { igUserId, igUsername, error: null };
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
+    return { igUserId: null, igUsername: null, error };
   }
 }
 
+export function instagramResolutionHint(resolution: PageInstagramResolution): string {
+  if (resolution.igUserId) return '';
+  const metaError = resolution.error ?? INSTAGRAM_NOT_LINKED_MESSAGE;
+  if (/pages_read_engagement|instagram_basic|instagram_content_publish/i.test(metaError)) {
+    return `${metaError} Reconnect with Facebook after deploying the latest API — OAuth must include pages_read_engagement and Instagram permissions (enable Instagram use case in Meta App Dashboard).`;
+  }
+  return metaError;
+}
+
 async function enrichPageWithInstagram(page: MetaPageOption): Promise<MetaPageOption> {
-  if (page.igUserId || page.pageAccessToken.length < 20) return page;
+  if (page.pageAccessToken.length < 20) return page;
   const ig = await resolvePageInstagramAccount(page.pageId, page.pageAccessToken);
   return {
     ...page,
-    igUserId: ig.igUserId,
-    igUsername: ig.igUsername,
+    igUserId: ig.igUserId ?? page.igUserId,
+    igUsername: ig.igUsername ?? page.igUsername,
   };
 }
 
@@ -140,18 +168,32 @@ export async function fetchMetaPages(userAccessToken: string): Promise<MetaPageO
 }
 
 export const INSTAGRAM_NOT_LINKED_MESSAGE =
-  'Instagram business account is not linked to the selected Facebook Page. In Meta Business Suite, connect @thrwa.co to this Page (Settings → Linked accounts → Instagram), then reconnect OAuth and Save. Or turn off "Publish to Instagram".';
+  'Instagram business account is not linked to the selected Facebook Page, or the Page token cannot read it. Connect @thrwa.co in Meta Business Suite, then reconnect Facebook with Instagram permissions. Or turn off "Publish to Instagram".';
 
 export async function resolveInstagramForConfig(
   config: MetaSocialConfig,
-): Promise<MetaSocialConfig> {
-  if (config.igUserId) return config;
-  const ig = await resolvePageInstagramAccount(config.pageId, config.pageAccessToken);
-  if (!ig.igUserId) return config;
+): Promise<{ config: MetaSocialConfig; resolution: PageInstagramResolution }> {
+  if (config.igUserId) {
+    return {
+      config,
+      resolution: {
+        igUserId: config.igUserId,
+        igUsername: config.igUsername ?? null,
+        error: null,
+      },
+    };
+  }
+  const resolution = await resolvePageInstagramAccount(config.pageId, config.pageAccessToken);
+  if (!resolution.igUserId) {
+    return { config, resolution };
+  }
   return {
-    ...config,
-    igUserId: ig.igUserId,
-    igUsername: ig.igUsername ?? config.igUsername ?? null,
+    config: {
+      ...config,
+      igUserId: resolution.igUserId,
+      igUsername: resolution.igUsername ?? config.igUsername ?? null,
+    },
+    resolution,
   };
 }
 
@@ -178,9 +220,9 @@ export async function publishInstagramPhoto(args: {
   caption: string;
   imageUrl: string;
 }): Promise<string> {
-  const config = await resolveInstagramForConfig(args.config);
+  const { config, resolution } = await resolveInstagramForConfig(args.config);
   if (!config.igUserId) {
-    throw new Error(INSTAGRAM_NOT_LINKED_MESSAGE);
+    throw new Error(instagramResolutionHint(resolution));
   }
 
   const container = await graphPostJson<{ id: string }>(`/${config.igUserId}/media`, {

@@ -265,6 +265,7 @@ export type MetaSocialPublic = {
 export type SocialStatusResponse = {
   configured: boolean
   oauthAvailable: boolean
+  oauthScopes?: string
   meta: MetaSocialPublic | null
   brand: {
     website: string

@@ -62,9 +62,9 @@
     <rect x="320" y="0" width="296" height="110" rx="16" fill="#112240"/><text x="468" y="38" text-anchor="middle" font-family="Cairo" font-size="17" font-weight="700" fill="#8A94A6">24</text><text x="468" y="82" text-anchor="middle" font-family="Cairo" font-size="30" font-weight="800" fill="#FFFFFF">{{GOLD_24}}</text>
     <rect x="640" y="0" width="296" height="110" rx="16" fill="#112240"/><text x="788" y="38" text-anchor="middle" font-family="Cairo" font-size="17" font-weight="700" fill="#8A94A6">&#x623;&#x648;&#x646;&#x635;&#x629;</text><text x="788" y="82" text-anchor="middle" font-family="Cairo" font-size="28" font-weight="800" fill="#FFFFFF">{{GOLD_OUNCE}}</text>
   </g>
-  <g transform="translate(72, 750)">
+  <g transform="translate(72, 860)">
     <rect x="0" y="0" width="936" height="88" rx="44" fill="#C9A227"/>
     <text x="468" y="54" text-anchor="middle" font-family="Cairo" font-size="28" font-weight="800" fill="#0A1A2F">&#x62A;&#x627;&#x628;&#x639; &#x627;&#x644;&#x630;&#x647;&#x628; &#x644;&#x62D;&#x638;&#x629; &#x628;&#x644;&#x62D;&#x638;&#x629; &#x641;&#x64A; &#x62B;&#x631;&#x648;&#x629;</text>
   </g>
-  <text x="540" y="920" text-anchor="middle" font-family="Cairo" font-size="22" font-weight="700" fill="#C9A227">#&#x627;&#x633;&#x639;&#x627;&#x631;_&#x627;&#x644;&#x630;&#x647;&#x628;_&#x645;&#x646;_&#x62B;&#x631;&#x648;&#x629;</text>
+  <text x="540" y="1010" text-anchor="middle" font-family="Cairo" font-size="22" font-weight="700" fill="#C9A227">#&#x627;&#x633;&#x639;&#x627;&#x631;_&#x627;&#x644;&#x630;&#x647;&#x628;_&#x645;&#x646;_&#x62B;&#x631;&#x648;&#x629;</text>
 </svg>

@@ -208,6 +208,9 @@ export function SocialPostsPanel() {
       toast.error('Missing page token from Facebook — paste it manually')
       return
     }
+    if (publishInstagram && !page.igUserId) {
+      toast.warning('This Page has no linked Instagram account — Facebook only until you link @thrwa.co in Meta Business Suite')
+    }
     await saveMetaPayload(buildMetaPayload({
       pageId: page.pageId,
       pageName: page.pageName,
@@ -363,11 +366,22 @@ export function SocialPostsPanel() {
                       onClick={() => void connectPage(p)}
                     >
                       {p.pageName}
-                      {p.igUsername ? ` · @${p.igUsername}` : ''}
+                      {p.igUsername ? ` · @${p.igUsername}` : ' · no Instagram linked'}
                     </Button>
                   ))}
                 </div>
               </div>
+            ) : null}
+
+            {publishInstagram && !igUserId ? (
+              <Alert>
+                <AlertDescription>
+                  Instagram publishing is on, but no business account is linked to this Facebook Page.
+                  In Meta Business Suite open the Page → Settings → Linked accounts → Instagram, connect
+                  @thrwa.co, then click Refresh pages and Save. Or turn off Publish to Instagram to post
+                  on Facebook only.
+                </AlertDescription>
+              </Alert>
             ) : null}
 
             <div className='grid gap-3 md:grid-cols-2'>

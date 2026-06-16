@@ -11,6 +11,8 @@ import {
   buildMetaOAuthUrl,
   exchangeMetaOAuthCode,
   fetchMetaPages,
+  INSTAGRAM_NOT_LINKED_MESSAGE,
+  resolvePageInstagramAccount,
 } from '../../services/meta-graph.js';
 import {
   clearMetaSocialConfig,
@@ -126,9 +128,20 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
         );
       }
 
+      let igUserId = parsed.data.igUserId ?? null;
+      let igUsername = parsed.data.igUsername ?? null;
+      if (!igUserId) {
+        const resolved = await resolvePageInstagramAccount(parsed.data.pageId, pageAccessToken);
+        igUserId = resolved.igUserId;
+        igUsername = resolved.igUsername ?? igUsername;
+      }
+      if (parsed.data.publishInstagram && !igUserId) {
+        throw new AppError('VALIDATION', INSTAGRAM_NOT_LINKED_MESSAGE, 400);
+      }
+
       const publicInfo = await upsertMetaSocialConfig(
         admin.id,
-        { ...parsed.data, pageAccessToken },
+        { ...parsed.data, pageAccessToken, igUserId, igUsername },
         ctx().env,
       );
       await writeAdminAudit(

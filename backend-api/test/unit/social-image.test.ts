@@ -22,6 +22,7 @@ describe('social-image', () => {
 
     const png = renderSvgToPng(svg, env);
     expect(png.length).toBeGreaterThan(20_000);
+    expect(svg).toMatch(/href="data:image\/png;base64,[A-Za-z0-9+/=]+"/);
 
     const fontsDir = path.join(path.resolve(env.SOCIAL_TEMPLATES_DIR), 'fonts');
     expect(fs.readdirSync(fontsDir).some((name) => name.endsWith('.ttf'))).toBe(true);

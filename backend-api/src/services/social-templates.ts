@@ -90,15 +90,10 @@ function rewriteAssetPaths(svg: string, templatesDir: string): string {
     const abs = path.join(templatesDir, rel).replace(/\\/g, '/');
     return `file://${abs}`;
   };
-  return svg
-    .replace(/url\('([^']+)'\)/g, (_m, rel: string) => {
-      if (rel.startsWith('file://')) return `url('${rel}')`;
-      return `url('${toFileUrl(rel)}')`;
-    })
-    .replace(/href="([^"]+)"/g, (_m, rel: string) => {
-      if (rel.startsWith('file://') || rel.startsWith('http')) return `href="${rel}"`;
-      return `href="${toFileUrl(rel)}"`;
-    });
+  return svg.replace(/url\('([^']+)'\)/g, (_m, rel: string) => {
+    if (rel.startsWith('file://')) return `url('${rel}')`;
+    return `url('${toFileUrl(rel)}')`;
+  });
 }
 
 export function fillTemplate(template: string, vars: Record<string, string>): string {

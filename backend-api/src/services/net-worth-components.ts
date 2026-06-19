@@ -9,7 +9,21 @@ export const LIABILITY_CATEGORIES = ['loan', 'other_liability'] as const;
 const ALL_CATEGORIES = [...ASSET_CATEGORIES, ...LIABILITY_CATEGORIES] as const;
 
 /** Currencies accepted for manual entries: EGP plus the FX bases the backend serves. */
-const SUPPORTED_CURRENCIES = ['EGP', 'USD', 'EUR', 'SAR', 'AED', 'GBP', 'KWD', 'JPY', 'CHF', 'CNY'];
+const SUPPORTED_CURRENCIES = [
+  'EGP',
+  'USD',
+  'EUR',
+  'SAR',
+  'AED',
+  'GBP',
+  'KWD',
+  'OMR',
+  'QAR',
+  'BHD',
+  'JPY',
+  'CHF',
+  'CNY',
+];
 
 export const manualComponentBody = z
   .object({

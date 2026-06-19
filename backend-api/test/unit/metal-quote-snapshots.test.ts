@@ -24,6 +24,7 @@ const {
 const instrumentRows = [
   { id: 'id-24k', code: METAL_QUOTE_INSTRUMENT_CODES.GOLD_24K_GRAM },
   { id: 'id-21k', code: METAL_QUOTE_INSTRUMENT_CODES.GOLD_21K_GRAM },
+  { id: 'id-pound', code: METAL_QUOTE_INSTRUMENT_CODES.GOLD_POUND },
   { id: 'id-18k', code: METAL_QUOTE_INSTRUMENT_CODES.GOLD_18K_GRAM },
   { id: 'id-oz', code: METAL_QUOTE_INSTRUMENT_CODES.GOLD_TROY_OZ },
   { id: 'id-silver', code: METAL_QUOTE_INSTRUMENT_CODES.SILVER_GRAM },
@@ -39,6 +40,7 @@ function sampleItems(asOf = '2026-06-09T12:00:00.000Z'): MetalItem[] {
   return [
     { ...base, metal: 'gold', unit: 'gram', karat: 24, amountEgp: 7789 },
     { ...base, metal: 'gold', unit: 'gram', karat: 21, amountEgp: 6815 },
+    { ...base, metal: 'gold', unit: 'gold_pound', karat: 21, amountEgp: 54_520 },
     { ...base, metal: 'gold', unit: 'gram', karat: 18, amountEgp: 5841 },
     { ...base, metal: 'gold', unit: 'troy_ounce', karat: null, amountEgp: 242_000 },
     { ...base, metal: 'silver', unit: 'gram', karat: null, amountEgp: 132 },
@@ -77,6 +79,14 @@ describe('metal quote snapshots', () => {
         raw: null,
       },
       {
+        instrumentId: 'id-pound',
+        asOf: new Date('2026-06-09T12:00:00.000Z'),
+        last: { toNumber: () => 54_520 },
+        quoteCategory: QuoteCategory.indicative,
+        sessionState: SessionState.unknown,
+        raw: null,
+      },
+      {
         instrumentId: 'id-18k',
         asOf: new Date('2026-06-09T12:00:00.000Z'),
         last: { toNumber: () => 5841 },
@@ -104,8 +114,8 @@ describe('metal quote snapshots', () => {
 
     const result = await getLatestMetalQuotesFromDb();
     expect(result).not.toBeNull();
-    expect(result!.items).toHaveLength(5);
-    expect(result!.items.find((i) => i.karat === 21)?.amountEgp).toBe(6815);
+    expect(result!.items).toHaveLength(6);
+    expect(result!.items.find((i) => i.unit === 'gold_pound')?.amountEgp).toBe(54_520);
     expect(result!.bundleFetchedAt).toBe('2026-06-09T12:00:00.000Z');
   });
 
@@ -114,8 +124,8 @@ describe('metal quote snapshots', () => {
 
     const result = await persistMetalQuoteSnapshots(sampleItems(), { dedupMinIntervalSec: 0 });
     expect(result.skipped).toBe(false);
-    expect(result.inserted).toBe(5);
-    expect(mockCreate).toHaveBeenCalledTimes(5);
+    expect(result.inserted).toBe(6);
+    expect(mockCreate).toHaveBeenCalledTimes(6);
     expect(mockCreate.mock.calls[1][0].data.instrumentId).toBe('id-21k');
     expect(mockCreate.mock.calls[1][0].data.last.toNumber()).toBe(6815);
   });
@@ -135,6 +145,14 @@ describe('metal quote snapshots', () => {
         instrumentId: 'id-21k',
         asOf: now,
         last: { toNumber: () => 6815 },
+        quoteCategory: QuoteCategory.indicative,
+        sessionState: SessionState.unknown,
+        raw: null,
+      },
+      {
+        instrumentId: 'id-pound',
+        asOf: now,
+        last: { toNumber: () => 54_520 },
         quoteCategory: QuoteCategory.indicative,
         sessionState: SessionState.unknown,
         raw: null,

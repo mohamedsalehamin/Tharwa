@@ -24,7 +24,7 @@ export type FxRateItem = QuoteMeta & {
   flagUrl?: string;
 };
 
-const BASES = ['USD', 'EUR', 'GBP', 'SAR', 'AED', 'JPY', 'CHF', 'CNY'] as const;
+const BASES = ['USD', 'EUR', 'GBP', 'SAR', 'AED', 'KWD', 'OMR', 'QAR', 'BHD', 'JPY', 'CHF', 'CNY'] as const;
 
 type FxBase = (typeof BASES)[number];
 
@@ -43,6 +43,10 @@ const TV_DEFAULT_DIRECT: Partial<Record<FxBase, string>> = {
 const TV_CROSS_USD_QUOTE: Partial<Record<FxBase, string>> = {
   SAR: 'FX_IDC:USDSAR',
   AED: 'FX_IDC:USDAED',
+  KWD: 'FX_IDC:USDKWD',
+  OMR: 'FX_IDC:USDOMR',
+  QAR: 'FX_IDC:USDQAR',
+  BHD: 'FX_IDC:USDBHD',
   JPY: 'FX_IDC:USDJPY',
   CNY: 'FX_IDC:USDCNY',
 };

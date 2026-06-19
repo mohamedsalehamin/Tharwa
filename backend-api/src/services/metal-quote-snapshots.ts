@@ -98,6 +98,8 @@ function snapshotRowToMetalItem(code: MetalQuoteInstrumentCode, row: LatestSnaps
       return { ...base, metal: 'gold', unit: 'gram', karat: 21 };
     case 'GOLD_18K_GRAM_EGP':
       return { ...base, metal: 'gold', unit: 'gram', karat: 18 };
+    case 'GOLD_POUND_EGP':
+      return { ...base, metal: 'gold', unit: 'gold_pound', karat: 21 };
     case 'GOLD_TROY_OZ_EGP':
       return { ...base, metal: 'gold', unit: 'troy_ounce', karat: null };
     case 'SILVER_EGP':

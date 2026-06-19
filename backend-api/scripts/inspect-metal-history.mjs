@@ -10,6 +10,7 @@ const codes = [
   'GOLD_21K_GRAM_EGP',
   'GOLD_24K_GRAM_EGP',
   'GOLD_18K_GRAM_EGP',
+  'GOLD_POUND_EGP',
   'GOLD_TROY_OZ_EGP',
   'SILVER_EGP',
 ];

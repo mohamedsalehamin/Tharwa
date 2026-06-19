@@ -1883,7 +1883,7 @@ components:
               enum: [gold, silver]
             unit:
               type: string
-              enum: [gram, troy_ounce]
+              enum: [gram, troy_ounce, gold_pound]
             karat:
               type: integer
               enum: [18, 21, 24]

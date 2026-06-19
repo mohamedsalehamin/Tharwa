@@ -11,12 +11,15 @@ import type { EgyptTelegramBundle } from '../egypt-telegram-bundle.js';
 
 export type MetalItem = QuoteMeta & {
   metal: 'gold' | 'silver';
-  unit: 'gram' | 'troy_ounce';
+  unit: 'gram' | 'troy_ounce' | 'gold_pound';
   karat: 18 | 21 | 24 | null;
   amountEgp: number;
   /** Admin-uploaded icon (same for all rows of that metal). */
   flagUrl?: string;
 };
+
+/** Egyptian retail gold pound = 8 grams of 21-karat gold. */
+export const EGYPT_GOLD_POUND_GRAM_WEIGHT = 8;
 
 /** Built-in fallback when Telegram/mock are unavailable (used to detect “still failing” + short Redis TTL). */
 export const METALS_PLACEHOLDER_GOLD_24_PER_GRAM = 3200;
@@ -33,6 +36,51 @@ async function buildGoldRowsForEnv(
 
 function round4(n: number): number {
   return Math.round(n * 10000) / 10000;
+}
+
+/** Channel price when present; otherwise 8 × 21k gram (standard Egyptian gold pound). */
+export function goldPoundPriceEgp(
+  direct: number | null | undefined,
+  gram21Egp: number | null | undefined,
+): number | null {
+  if (direct != null && Number.isFinite(direct) && direct > 0) return round4(direct);
+  if (gram21Egp != null && Number.isFinite(gram21Egp) && gram21Egp > 0) {
+    return round4(gram21Egp * EGYPT_GOLD_POUND_GRAM_WEIGHT);
+  }
+  return null;
+}
+
+function buildGoldPoundRow(
+  asOfIso: string,
+  parsed: Pick<EgyptParsedPrices, 'gold_pound'>,
+  gram21Egp: number | null | undefined,
+  quoteCategory: MetalItem['quoteCategory'],
+  isStale: boolean,
+): MetalItem | null {
+  const amountEgp = goldPoundPriceEgp(parsed.gold_pound, gram21Egp);
+  if (amountEgp == null) return null;
+  return {
+    asOf: asOfIso,
+    quoteCategory: parsed.gold_pound != null ? 'indicative' : quoteCategory,
+    sessionState: 'unknown',
+    isStale,
+    metal: 'gold',
+    unit: 'gold_pound',
+    karat: 21,
+    amountEgp,
+  };
+}
+
+function appendGoldPoundRow(
+  rows: MetalItem[],
+  asOfIso: string,
+  parsed: Pick<EgyptParsedPrices, 'gold_pound'>,
+  quoteCategory: MetalItem['quoteCategory'],
+  isStale: boolean,
+): MetalItem[] {
+  const gram21 = rows.find((i) => i.metal === 'gold' && i.unit === 'gram' && i.karat === 21)?.amountEgp;
+  const pound = buildGoldPoundRow(asOfIso, parsed, gram21, quoteCategory, isStale);
+  return pound ? [...rows, pound] : rows;
 }
 
 /** Use gram prices from the channel when present; karat rules only fill gaps (e.g. troy oz). */
@@ -95,7 +143,7 @@ export async function metalItemsFromEgyptParsed(
     amountEgp: round4(silverGram ?? silverFallbackEgp),
   };
 
-  return [...gold, silver];
+  return appendGoldPoundRow([...gold, silver], asOfIso, parsed, 'estimate', false);
 }
 
 export async function fetchMetals(
@@ -138,7 +186,16 @@ async function fetchMetalsInner(
       karat: null,
       amountEgp: round4(raw.silverGramEgp),
     };
-    return { items: [...gold, silver], fetchedAt };
+    return {
+      items: appendGoldPoundRow(
+        [...gold, silver],
+        fetchedAt.toISOString(),
+        { gold_pound: null },
+        'indicative',
+        false,
+      ),
+      fetchedAt,
+    };
   }
 
   if (telegramBundle?.parsed.karat_21 != null) {
@@ -168,5 +225,14 @@ async function fetchMetalsInner(
     karat: null,
     amountEgp: placeholderSilver,
   };
-  return { items: [...gold, silver], fetchedAt };
+  return {
+    items: appendGoldPoundRow(
+      [...gold, silver],
+      fetchedAt.toISOString(),
+      { gold_pound: null },
+      'estimate',
+      false,
+    ),
+    fetchedAt,
+  };
 }

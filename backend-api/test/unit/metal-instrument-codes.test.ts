@@ -16,4 +16,10 @@ describe('metal instrument codes', () => {
       metalItemToInstrumentCode({ metal: 'silver', unit: 'gram', karat: null }),
     ).toBe(METAL_QUOTE_INSTRUMENT_CODES.SILVER_GRAM);
   });
+
+  it('maps gold pound to stable instrument code', () => {
+    expect(
+      metalItemToInstrumentCode({ metal: 'gold', unit: 'gold_pound', karat: 21 }),
+    ).toBe(METAL_QUOTE_INSTRUMENT_CODES.GOLD_POUND);
+  });
 });

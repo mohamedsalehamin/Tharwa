@@ -53,6 +53,8 @@ function metalOunce(items: Awaited<ReturnType<typeof getMetalsCached>>['items'])
 }
 
 function metalPound(items: Awaited<ReturnType<typeof getMetalsCached>>['items']): number | null {
+  const direct = items.find((i) => i.unit === 'gold_pound');
+  if (direct && Number.isFinite(direct.amountEgp)) return direct.amountEgp;
   const k21 = metalByKarat(items, 21);
   return k21 != null ? Math.round(k21 * 8) : null;
 }

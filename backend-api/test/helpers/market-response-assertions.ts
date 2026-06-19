@@ -10,7 +10,7 @@ export function assertMetalsListShape(body: unknown): void {
   expect(items.length).toBeGreaterThan(0);
   for (const item of items) {
     expect(item.metal).toMatch(/^(gold|silver)$/);
-    expect(item.unit).toMatch(/^(gram|troy_ounce)$/);
+    expect(item.unit).toMatch(/^(gram|troy_ounce|gold_pound)$/);
     expect(typeof item.amountEgp).toBe('number');
     expect(typeof item.asOf).toBe('string');
     expect(typeof item.isStale).toBe('boolean');

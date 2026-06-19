@@ -7,6 +7,10 @@ import {
   parseFxMetadata,
   type QuoteCategoryLabel,
 } from '../lib/instrument-metadata.js';
+import {
+  ALL_METAL_QUOTE_INSTRUMENT_CODES,
+  metalItemToInstrumentCode,
+} from '../lib/metal-instrument-codes.js';
 import { prisma } from '../lib/prisma.js';
 import type { FxRateItem } from './connectors/fx.js';
 import type { MetalItem } from './connectors/metals.js';
@@ -111,24 +115,43 @@ export async function loadMetalPresentation(env: Env): Promise<{
   };
 }
 
+/** Per-row metal icons from quote instrument metadata (falls back to parent gold/silver in applyMetalsPresentation). */
+async function loadMetalQuoteFlagByCode(): Promise<Map<string, string>> {
+  const rows = await prisma.instrument.findMany({
+    where: { code: { in: [...ALL_METAL_QUOTE_INSTRUMENT_CODES] } },
+    select: { code: true, metadata: true },
+  });
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    const flagUrl = parseFlagUrl(row.metadata);
+    if (flagUrl) map.set(row.code, flagUrl);
+  }
+  return map;
+}
+
 /** Filter metal quote rows per admin instrument visibility (FR-009). */
 export async function applyMetalsPresentation(
   env: Env,
   items: MetalItem[],
 ): Promise<MetalItem[]> {
-  const { goldVisible, silverVisible, goldFlagUrl, silverFlagUrl } =
-    await loadMetalPresentation(env);
+  const [{ goldVisible, silverVisible, goldFlagUrl, silverFlagUrl }, flagByCode] =
+    await Promise.all([loadMetalPresentation(env), loadMetalQuoteFlagByCode()]);
   return items
     .filter((i) => {
       if (i.metal === 'gold') return goldVisible;
       if (i.metal === 'silver') return silverVisible;
       return false;
     })
-    .map((i) => ({
-      ...i,
-      flagUrl:
-        i.metal === 'gold' ? goldFlagUrl : i.metal === 'silver' ? silverFlagUrl : undefined,
-    }));
+    .map((i) => {
+      const code = metalItemToInstrumentCode(i);
+      const specific = code ? flagByCode.get(code) : undefined;
+      const fallback =
+        i.metal === 'gold' ? goldFlagUrl : i.metal === 'silver' ? silverFlagUrl : undefined;
+      return {
+        ...i,
+        flagUrl: specific ?? fallback,
+      };
+    });
 }
 
 export async function invalidateMarketCachesForInstrument(

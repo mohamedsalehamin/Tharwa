@@ -16,10 +16,12 @@ RUN npx prisma generate && npm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+RUN apk add --no-cache ffmpeg
 COPY --from=build /app/backend-api/node_modules ./node_modules
 COPY --from=build /app/backend-api/dist ./dist
 COPY --from=build /app/backend-api/prisma ./prisma
 COPY --from=build /app/backend-api/contracts ./contracts
+COPY --from=build /app/backend-api/assets ./assets
 COPY backend-api/package.json ./
 EXPOSE 3000
 CMD ["node", "dist/server.js"]

@@ -113,6 +113,26 @@ function zodMessage(err: z.ZodError): string {
   return err.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
 }
 
+function toSocialAdminError(err: unknown): unknown {
+  if (err instanceof AppError) return err;
+  const message = err instanceof Error ? err.message : String(err);
+  if (/prisma|invocation|Unknown field|SocialPostFormat|social_post_runs/i.test(message)) {
+    return new AppError(
+      'CONFIG',
+      'Database migration missing — run: npm run migrate (0033_social_video_formats).',
+      503,
+    );
+  }
+  if (
+    /GEMINI|ffmpeg|ffprobe|SOCIAL_PUBLIC|PUBLIC_FILES_ORIGIN|not found on PATH|Configure Meta/i.test(
+      message,
+    )
+  ) {
+    return new AppError('CONFIG', message, 503);
+  }
+  return err;
+}
+
 function clientIp(req: { ip?: string; headers: Record<string, unknown> }): string | undefined {
   const xf = req.headers['x-forwarded-for'];
   if (typeof xf === 'string' && xf.length > 0) return xf.split(',')[0]?.trim();
@@ -582,7 +602,7 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
       }
       return reply.send({ published: true, ...result });
     } catch (e) {
-      if (!reply.sent) sendError(reply, e);
+      if (!reply.sent) sendError(reply, toSocialAdminError(e));
     }
   });
 };

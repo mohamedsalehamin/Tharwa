@@ -237,7 +237,7 @@ export function SocialPostsPanel() {
                 </Select>
               </div>
               <Button type='button' variant='outline' disabled={previewLoading} onClick={() => void runPreview()}>
-                Preview
+                {template === 'gold_daily' ? 'Preview frame' : 'Preview'}
               </Button>
               {canManage ? (
                 <>
@@ -270,6 +270,11 @@ export function SocialPostsPanel() {
               ) : null}
             </div>
 
+            {preview?.publishNote ? (
+              <Alert>
+                <AlertDescription>{preview.publishNote}</AlertDescription>
+              </Alert>
+            ) : null}
             {preview?.pngBase64 ? (
               <img
                 src={`data:image/png;base64,${preview.pngBase64}`}

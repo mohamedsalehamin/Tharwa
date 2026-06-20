@@ -33,7 +33,7 @@ export function buildYoutubeOAuthUrl(env: Env, state: string): string {
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('scope', YOUTUBE_OAUTH_SCOPES);
   url.searchParams.set('access_type', 'offline');
-  url.searchParams.set('prompt', 'consent');
+  url.searchParams.set('prompt', 'consent select_account');
   url.searchParams.set('state', state);
   return url.toString();
 }

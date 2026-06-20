@@ -34,6 +34,8 @@ export type SocialPreviewResult = {
   svg: string;
   pngBase64: string | null;
   pngError: string | null;
+  mediaKind?: 'photo' | 'video_bundle';
+  publishNote?: string | null;
 };
 
 export type SocialPublishResult = {
@@ -73,6 +75,11 @@ export async function previewSocialPost(
     svg,
     pngBase64,
     pngError,
+    mediaKind: template === 'gold_daily' ? 'video_bundle' : 'photo',
+    publishNote:
+      template === 'gold_daily'
+        ? 'Preview shows the static frame only. Publish generates Gemini voice + 9:16 MP4 video.'
+        : null,
   };
 }
 

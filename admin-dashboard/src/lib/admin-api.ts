@@ -300,6 +300,8 @@ export type SocialPreviewResult = {
   svg: string
   pngBase64: string | null
   pngError: string | null
+  mediaKind?: 'photo' | 'video_bundle'
+  publishNote?: string | null
 }
 
 export type SocialPostRunRow = {

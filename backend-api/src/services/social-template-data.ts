@@ -146,7 +146,6 @@ export async function buildSocialContent(
       if (!(changePct <= -dropPct)) return null;
     }
 
-    const caption = fillCaptionTemplate(template, vars);
     const platformCaptions = buildGoldPlatformCaptions(template, vars);
     const voiceInput: GoldVoiceoverInput = {
       gold21Price: gold21,

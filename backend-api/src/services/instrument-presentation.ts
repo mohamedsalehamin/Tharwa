@@ -1,3 +1,5 @@
+import { access } from 'node:fs/promises';
+import path from 'node:path';
 import { InstrumentKind } from '@prisma/client';
 import type { Redis } from 'ioredis';
 import type { Env } from '../config/env.js';
@@ -12,6 +14,10 @@ import {
   metalItemToInstrumentCode,
 } from '../lib/metal-instrument-codes.js';
 import { prisma } from '../lib/prisma.js';
+import {
+  instrumentFlagRelativePath,
+  publicFileUrl,
+} from './instrument-flag-storage.js';
 import type { FxRateItem } from './connectors/fx.js';
 import type { MetalItem } from './connectors/metals.js';
 
@@ -116,15 +122,46 @@ export async function loadMetalPresentation(env: Env): Promise<{
 }
 
 /** Per-row metal icons from quote instrument metadata (falls back to parent gold/silver in applyMetalsPresentation). */
-async function loadMetalQuoteFlagByCode(): Promise<Map<string, string>> {
+const METAL_FLAG_UPLOAD_MIMES = [
+  ['image/png', 'png'],
+  ['image/jpeg', 'jpg'],
+  ['image/webp', 'webp'],
+  ['image/svg+xml', 'svg'],
+] as const;
+
+async function metalFlagUrlFromUploadFile(env: Env, code: string): Promise<string | undefined> {
+  for (const [mime] of METAL_FLAG_UPLOAD_MIMES) {
+    const rel = instrumentFlagRelativePath('metal', code, mime);
+    const diskPath = path.join(env.PUBLIC_UPLOADS_DIR, rel.replace(/^\/files\//, ''));
+    try {
+      await access(diskPath);
+      return publicFileUrl(env, rel);
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
+}
+
+async function loadMetalQuoteFlagByCode(env: Env): Promise<Map<string, string>> {
   const rows = await prisma.instrument.findMany({
     where: { code: { in: [...ALL_METAL_QUOTE_INSTRUMENT_CODES] } },
     select: { code: true, metadata: true },
   });
   const map = new Map<string, string>();
   for (const row of rows) {
-    const flagUrl = parseFlagUrl(row.metadata);
-    if (flagUrl) map.set(row.code, flagUrl);
+    const fromMeta = parseFlagUrl(row.metadata);
+    if (fromMeta) {
+      map.set(row.code, fromMeta);
+      continue;
+    }
+    const fromDisk = await metalFlagUrlFromUploadFile(env, row.code);
+    if (fromDisk) map.set(row.code, fromDisk);
+  }
+  for (const code of ALL_METAL_QUOTE_INSTRUMENT_CODES) {
+    if (map.has(code)) continue;
+    const fromDisk = await metalFlagUrlFromUploadFile(env, code);
+    if (fromDisk) map.set(code, fromDisk);
   }
   return map;
 }
@@ -135,7 +172,7 @@ export async function applyMetalsPresentation(
   items: MetalItem[],
 ): Promise<MetalItem[]> {
   const [{ goldVisible, silverVisible, goldFlagUrl, silverFlagUrl }, flagByCode] =
-    await Promise.all([loadMetalPresentation(env), loadMetalQuoteFlagByCode()]);
+    await Promise.all([loadMetalPresentation(env), loadMetalQuoteFlagByCode(env)]);
   return items
     .filter((i) => {
       if (i.metal === 'gold') return goldVisible;

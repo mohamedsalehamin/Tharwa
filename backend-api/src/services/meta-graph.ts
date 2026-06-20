@@ -319,3 +319,127 @@ export async function publishInstagramPhoto(args: {
 
   return published.id;
 }
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForInstagramContainer(
+  containerId: string,
+  accessToken: string,
+  maxWaitMs = 180_000,
+): Promise<void> {
+  const started = Date.now();
+  while (Date.now() - started < maxWaitMs) {
+    const status = await graphGet<{ status_code?: string; status?: string }>(`/${containerId}`, {
+      fields: 'status_code,status',
+      access_token: accessToken,
+    });
+    if (status.status_code === 'FINISHED') return;
+    if (status.status_code === 'ERROR' || status.status_code === 'EXPIRED') {
+      throw new Error(`Instagram container failed: ${status.status ?? status.status_code}`);
+    }
+    await sleep(4_000);
+  }
+  throw new Error('Instagram media container timed out');
+}
+
+async function publishInstagramMediaContainer(
+  config: MetaSocialConfig,
+  containerParams: Record<string, string>,
+): Promise<string> {
+  const { config: resolved, resolution } = await resolveInstagramForConfig(config);
+  if (!resolved.igUserId) {
+    throw new Error(instagramResolutionHint(resolution));
+  }
+
+  const container = await graphPostJson<{ id: string }>(`/${resolved.igUserId}/media`, {
+    ...containerParams,
+    access_token: resolved.pageAccessToken,
+  });
+  await waitForInstagramContainer(container.id, resolved.pageAccessToken);
+  const published = await graphPostJson<{ id: string }>(`/${resolved.igUserId}/media_publish`, {
+    creation_id: container.id,
+    access_token: resolved.pageAccessToken,
+  });
+  return published.id;
+}
+
+export async function publishInstagramReel(args: {
+  config: MetaSocialConfig;
+  caption: string;
+  videoUrl: string;
+}): Promise<string> {
+  return publishInstagramMediaContainer(args.config, {
+    media_type: 'REELS',
+    video_url: args.videoUrl,
+    caption: args.caption,
+  });
+}
+
+export async function publishInstagramStoryPhoto(args: {
+  config: MetaSocialConfig;
+  imageUrl: string;
+}): Promise<string> {
+  return publishInstagramMediaContainer(args.config, {
+    media_type: 'STORIES',
+    image_url: args.imageUrl,
+  });
+}
+
+export async function publishInstagramStoryVideo(args: {
+  config: MetaSocialConfig;
+  videoUrl: string;
+}): Promise<string> {
+  return publishInstagramMediaContainer(args.config, {
+    media_type: 'STORIES',
+    video_url: args.videoUrl,
+  });
+}
+
+/** Page video (9:16) — surfaces as Reels on Facebook for short vertical uploads. */
+export async function publishFacebookReel(args: {
+  config: MetaSocialConfig;
+  caption: string;
+  videoUrl: string;
+}): Promise<string> {
+  const data = await graphPostJson<{ id?: string }>(`/${args.config.pageId}/videos`, {
+    file_url: args.videoUrl,
+    description: args.caption,
+    published: 'true',
+    access_token: args.config.pageAccessToken,
+  });
+  return data.id ?? 'unknown';
+}
+
+export async function publishFacebookStoryPhoto(args: {
+  config: MetaSocialConfig;
+  imageUrl: string;
+}): Promise<string> {
+  const photo = await graphPostJson<{ id: string }>(`/${args.config.pageId}/photos`, {
+    url: args.imageUrl,
+    published: 'false',
+    access_token: args.config.pageAccessToken,
+  });
+  const story = await graphPostJson<{ id?: string }>(`/${args.config.pageId}/photo_stories`, {
+    photo_id: photo.id,
+    access_token: args.config.pageAccessToken,
+  });
+  return story.id ?? photo.id;
+}
+
+export async function publishFacebookStoryVideo(args: {
+  config: MetaSocialConfig;
+  videoUrl: string;
+}): Promise<string> {
+  const video = await graphPostJson<{ id: string }>(`/${args.config.pageId}/videos`, {
+    file_url: args.videoUrl,
+    published: 'false',
+    access_token: args.config.pageAccessToken,
+  });
+  const story = await graphPostJson<{ id?: string }>(`/${args.config.pageId}/video_stories`, {
+    video_id: video.id,
+    access_token: args.config.pageAccessToken,
+  });
+  return story.id ?? video.id;
+}

@@ -262,11 +262,23 @@ export type MetaSocialPublic = {
   tokenPreview: string | null
 }
 
+export type YoutubeSocialPublic = {
+  channelId: string
+  channelTitle: string
+  publishEnabled: boolean
+  connected: boolean
+}
+
 export type SocialStatusResponse = {
   configured: boolean
   oauthAvailable: boolean
   oauthScopes?: string
   meta: MetaSocialPublic | null
+  youtube: {
+    configured: boolean
+    oauthAvailable: boolean
+    channel: YoutubeSocialPublic | null
+  }
   brand: {
     website: string
     facebook: string
@@ -294,6 +306,7 @@ export type SocialPostRunRow = {
   id: string
   template: string
   channel: string
+  format: string
   status: string
   caption: string | null
   externalPostId: string | null
@@ -302,4 +315,19 @@ export type SocialPostRunRow = {
   cairoDateKey: string
   postedAt: string | null
   createdAt: string
+}
+
+export type SocialPublishChannelResult = {
+  channel: string
+  format: string
+  status: string
+  externalPostId: string | null
+  errorMessage: string | null
+}
+
+export type SocialPublishResponse = {
+  published: boolean
+  reason?: string
+  template?: string
+  results?: SocialPublishChannelResult[]
 }

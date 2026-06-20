@@ -865,6 +865,13 @@ enum SocialPostTemplate {
 enum SocialPostChannel {
   facebook
   instagram
+  youtube
+}
+
+enum SocialPostFormat {
+  photo
+  reel
+  story
 }
 
 enum SocialPostStatus {
@@ -873,11 +880,12 @@ enum SocialPostStatus {
   skipped
 }
 
-/// Automated or manual Facebook / Instagram post attempts.
+/// Automated social post attempts (Facebook / Instagram / YouTube).
 model SocialPostRun {
   id             String             @id @default(uuid())
   template       SocialPostTemplate
   channel        SocialPostChannel
+  format         SocialPostFormat   @default(photo)
   status         SocialPostStatus
   caption        String?
   externalPostId String?            @map("external_post_id")
@@ -887,7 +895,7 @@ model SocialPostRun {
   postedAt       DateTime?          @map("posted_at")
   createdAt      DateTime           @default(now()) @map("created_at")
 
-  @@index([cairoDateKey, template, channel])
+  @@index([cairoDateKey, template, channel, format])
   @@index([createdAt(sort: Desc)])
   @@map("social_post_runs")
 }

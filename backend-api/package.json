@@ -16,7 +16,10 @@
     "format": "prettier --write .",
     "verify:movers": "node scripts/verify-egx-movers.mjs",
     "import:equity-sectors": "tsx scripts/import-equity-sectors.ts",
-    "backfill:metal-history": "node scripts/backfill-metal-channel-history.mjs"
+    "backfill:metal-history": "node scripts/backfill-metal-channel-history.mjs",
+    "demo:gold-short": "tsx scripts/demo-gold-short.ts",
+    "demo:gold-voice": "tsx scripts/namaa-voice.ts",
+    "demo:gold-short-full": "npm run demo:gold-voice && tsx scripts/demo-gold-short.ts --voice demo/gold-short-voice.wav"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",

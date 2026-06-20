@@ -5,6 +5,7 @@ import { cairoDateKey } from './egx-trading-day.js';
 import { fetchMarketBriefSnapshot } from './daily-brief.js';
 import { getMetalsCached } from './quotes.js';
 import { getEgxMoversCached } from './stocks.js';
+import type { GoldVoiceoverInput } from './gold-voiceover-script.js';
 import type { SocialTemplateKey } from './social-templates.js';
 
 const COLOR_UP = '#00C853';
@@ -59,11 +60,28 @@ function metalPound(items: Awaited<ReturnType<typeof getMetalsCached>>['items'])
   return k21 != null ? Math.round(k21 * 8) : null;
 }
 
+export type PlatformCaptions = {
+  igReel: string;
+  fbReel: string;
+  ytTitle: string;
+  ytDescription: string;
+  storyOverlay: string;
+};
+
 export type SocialContentBundle = {
   template: SocialTemplateKey;
   vars: Record<string, string>;
+  /** Default caption (Instagram Reel). */
   caption: string;
+  platformCaptions?: PlatformCaptions;
+  voiceInput?: GoldVoiceoverInput;
 };
+
+/** Odd Cairo day → story photo; even → story video (same reel file). */
+export function isStoryVideoDay(cairoDayKey: string): boolean {
+  const dayNum = Number(cairoDayKey.split('-').at(-1) ?? '0');
+  return dayNum % 2 === 0;
+}
 
 export async function buildSocialContent(
   env: Env,
@@ -129,7 +147,16 @@ export async function buildSocialContent(
     }
 
     const caption = fillCaptionTemplate(template, vars);
-    return { template, vars, caption };
+    const platformCaptions = buildGoldPlatformCaptions(template, vars);
+    const voiceInput: GoldVoiceoverInput = {
+      gold21Price: gold21,
+      gold18Price: gold18,
+      gold24Price: gold24,
+      goldPoundPrice: goldPound,
+      goldOuncePrice: goldOunce,
+      changeEgpFromOpen: changeEgp,
+    };
+    return { template, vars, caption: platformCaptions.igReel, platformCaptions, voiceInput };
   }
 
   const [snap, gainers, losers] = await Promise.all([
@@ -191,6 +218,33 @@ function buildGoldBodyParagraph(changeEgp: number, gold21: number): string {
   }
   const dir = changeEgp < 0 ? 'انخفضت' : 'ارتفعت';
   return `${dir} #اسعار_الذهب محلياً بما يقارب ${fmtNum(Math.abs(changeEgp))} جنيهاً مقارنةً بسعر افتتاح اليوم، ليتداول عيار 21 الآن عند ${fmtNum(gold21)} ج للجرام.`;
+}
+
+function buildGoldPlatformCaptions(
+  template: 'gold_daily' | 'gold_alert',
+  vars: Record<string, string>,
+): PlatformCaptions {
+  const base = fillCaptionTemplate(template, vars);
+  const shortHook = `${vars.HEADLINE} — عيار 21: ${vars.CURRENT_PRICE} ج`;
+
+  return {
+    igReel: base,
+    fbReel: `${vars.HEADLINE}
+
+${vars.BODY_PARAGRAPH}
+
+حمّل تطبيق ثروة وتابع أسعار الذهب لحظة بلحظة.
+${vars.PLAY_STORE_URL}`,
+    ytTitle: `أسعار الذهب اليوم | عيار 21 ${vars.CURRENT_PRICE} ج #Shorts`,
+    ytDescription: `${vars.BODY_PARAGRAPH}
+
+حمّل تطبيق ثروة:
+Android: ${vars.PLAY_STORE_URL}
+iOS: ${vars.APP_STORE_URL}
+
+#ثروة #اسعار_الذهب #الذهب_في_مصر #Shorts`,
+    storyOverlay: shortHook,
+  };
 }
 
 function fillCaptionTemplate(template: SocialTemplateKey, vars: Record<string, string>): string {

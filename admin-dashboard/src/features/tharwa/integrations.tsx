@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminFetch, type IntegrationItem } from '@/lib/admin-api'
 import { isSuperadmin } from '@/lib/admin-roles'
 import { useAuthStore } from '@/stores/auth-store'
+import { SocialIntegrationsSection } from '@/features/tharwa/social-integrations'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -87,7 +88,7 @@ export function IntegrationsSettings() {
           <h1 className='text-2xl font-bold tracking-tight'>Integrations</h1>
           <p className='text-sm text-muted-foreground'>
             {canManage
-              ? 'Upload platform credentials (FCM).'
+              ? 'Platform credentials for push notifications and social publishing.'
               : 'View-only — only superadmins can change credentials.'}
           </p>
         </div>
@@ -107,7 +108,7 @@ export function IntegrationsSettings() {
           </Alert>
         ) : null}
 
-        <Card>
+        <Card className='mb-6'>
           <CardHeader>
             <CardTitle>Firebase Cloud Messaging</CardTitle>
             <CardDescription>
@@ -153,6 +154,8 @@ export function IntegrationsSettings() {
             ) : null}
           </CardContent>
         </Card>
+
+        <SocialIntegrationsSection token={token} canManage={canManage} onError={setActionErr} />
       </Main>
     </>
   )

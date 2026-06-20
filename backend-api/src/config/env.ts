@@ -202,6 +202,10 @@ const envSchema = z.object({
   SOCIAL_EGX_CLOSE_MINUTE: z.coerce.number().int().min(0).max(59).default(15),
   /** Gold alert when 21k drops this % from Cairo-day open (e.g. 10 = 10%). */
   SOCIAL_GOLD_ALERT_DROP_PCT: z.coerce.number().min(1).max(50).default(10),
+  /** YouTube OAuth for automated Shorts upload (separate from consumer Google sign-in). */
+  YOUTUBE_OAUTH_CLIENT_ID: z.string().min(5).optional(),
+  YOUTUBE_OAUTH_CLIENT_SECRET: z.string().min(8).optional(),
+  YOUTUBE_OAUTH_REDIRECT_URI: z.string().url().optional(),
   /** Comma-separated Google OAuth client IDs (Web + iOS + Android) allowed as `aud` on ID tokens. */
   GOOGLE_OAUTH_CLIENT_IDS: z
     .string()

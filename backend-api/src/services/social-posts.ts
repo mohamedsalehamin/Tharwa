@@ -1,6 +1,11 @@
 import type { Redis } from 'ioredis';
 import type { FastifyBaseLogger } from 'fastify';
-import type { SocialPostChannel, SocialPostStatus, SocialPostTemplate } from '@prisma/client';
+import type {
+  SocialPostChannel,
+  SocialPostFormat,
+  SocialPostStatus,
+  SocialPostTemplate,
+} from '@prisma/client';
 import type { Env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { cairoDateKey } from './egx-trading-day.js';
@@ -9,6 +14,7 @@ import {
   type MetaSocialConfig,
 } from './meta-social-credentials.js';
 import { publishFacebookPhoto, publishInstagramPhoto } from './meta-graph.js';
+import { publishGoldDailyVideoBundle } from './social-gold-daily-publish.js';
 import {
   buildSocialContent,
   markGoldAlertSent,
@@ -34,6 +40,7 @@ export type SocialPublishResult = {
   template: SocialTemplateKey;
   results: {
     channel: SocialPostChannel;
+    format: SocialPostFormat;
     status: SocialPostStatus;
     externalPostId: string | null;
     errorMessage: string | null;
@@ -76,7 +83,15 @@ export async function publishSocialPost(args: {
   template: SocialTemplateKey;
   triggeredBy: string;
   force?: boolean;
+  retryFailed?: boolean;
 }): Promise<SocialPublishResult | null> {
+  if (args.template === 'gold_daily') {
+    return publishGoldDailyVideoBundle(args);
+  }
+  if (args.retryFailed) {
+    throw new Error('Retry failed is only supported for gold_daily');
+  }
+
   const config = await getMetaSocialConfig(args.env);
   if (!config) {
     throw new Error('Meta social integration is not configured');
@@ -173,6 +188,7 @@ async function publishToChannel(args: {
       data: {
         template: args.template,
         channel: args.channel,
+        format: 'photo',
         status: 'published',
         caption: args.content.caption,
         externalPostId,
@@ -184,6 +200,7 @@ async function publishToChannel(args: {
 
     return {
       channel: args.channel,
+      format: 'photo',
       status: 'published',
       externalPostId,
       errorMessage: null,
@@ -194,6 +211,7 @@ async function publishToChannel(args: {
       data: {
         template: args.template,
         channel: args.channel,
+        format: 'photo',
         status: 'failed',
         caption: args.content.caption,
         errorMessage,
@@ -203,6 +221,7 @@ async function publishToChannel(args: {
     });
     return {
       channel: args.channel,
+      format: 'photo',
       status: 'failed',
       externalPostId: null,
       errorMessage,

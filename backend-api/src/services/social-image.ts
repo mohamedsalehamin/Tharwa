@@ -85,3 +85,21 @@ export async function writePublicSocialImage(
   const publicUrl = `${origin.replace(/\/$/, '')}/files/${relativePath}`;
   return { relativePath, publicUrl };
 }
+
+export async function writePublicSocialVideo(
+  env: Env,
+  mp4: Buffer,
+): Promise<{ relativePath: string; publicUrl: string }> {
+  const dir = path.resolve(env.PUBLIC_UPLOADS_DIR, 'social');
+  await fsPromises.mkdir(dir, { recursive: true });
+  const filename = `${randomUUID()}.mp4`;
+  const filePath = path.join(dir, filename);
+  await fsPromises.writeFile(filePath, mp4);
+  const relativePath = `social/${filename}`;
+  const origin = env.SOCIAL_PUBLIC_FILES_ORIGIN ?? env.PUBLIC_FILES_ORIGIN;
+  if (!origin) {
+    throw new Error('SOCIAL_PUBLIC_FILES_ORIGIN or PUBLIC_FILES_ORIGIN must be set for video publishing');
+  }
+  const publicUrl = `${origin.replace(/\/$/, '')}/files/${relativePath}`;
+  return { relativePath, publicUrl };
+}

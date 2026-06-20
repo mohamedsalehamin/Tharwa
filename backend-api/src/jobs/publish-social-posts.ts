@@ -9,6 +9,7 @@ import {
   isPastSendTime,
   publishSocialPost,
 } from '../services/social-posts.js';
+import { getYoutubeSocialConfig } from '../services/youtube-social-credentials.js';
 import {
   buildSocialContent,
   wasGoldAlertSentToday,
@@ -22,12 +23,13 @@ let tickInFlight = false;
 export async function runSocialPostTick(ctx: AppCtx, log: Logger): Promise<void> {
   if (!ctx.env.SOCIAL_POST_ENABLED) return;
 
-  const config = await getMetaSocialConfig(ctx.env);
-  if (!config) return;
+  const metaConfig = await getMetaSocialConfig(ctx.env);
+  const youtubeConfig = await getYoutubeSocialConfig(ctx.env);
+  if (!metaConfig && !youtubeConfig) return;
 
   const { hour, minute } = cairoHourMinute();
   const day = cairoDateKey();
-  const schedules = config.schedules ?? {
+  const schedules = metaConfig?.schedules ?? {
     goldDaily: { enabled: true, hour: ctx.env.SOCIAL_GOLD_DAILY_HOUR, minute: ctx.env.SOCIAL_GOLD_DAILY_MINUTE },
     egxClose: { enabled: true, hour: ctx.env.SOCIAL_EGX_CLOSE_HOUR, minute: ctx.env.SOCIAL_EGX_CLOSE_MINUTE },
     goldAlert: { enabled: true, dropPct: ctx.env.SOCIAL_GOLD_ALERT_DROP_PCT },
@@ -54,6 +56,7 @@ export async function runSocialPostTick(ctx: AppCtx, log: Logger): Promise<void>
   }
 
   if (
+    metaConfig &&
     schedules.egxClose.enabled &&
     isPastSendTime(hour, minute, schedules.egxClose.hour, schedules.egxClose.minute)
   ) {
@@ -74,7 +77,7 @@ export async function runSocialPostTick(ctx: AppCtx, log: Logger): Promise<void>
     }
   }
 
-  if (schedules.goldAlert.enabled) {
+  if (metaConfig && schedules.goldAlert.enabled) {
     const already = await wasGoldAlertSentToday(ctx.redis, day);
     if (!already) {
       const content = await buildSocialContent(ctx.env, ctx.redis, log, 'gold_alert');

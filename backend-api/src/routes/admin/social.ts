@@ -22,6 +22,18 @@ import {
   upsertMetaSocialConfig,
 } from '../../services/meta-social-credentials.js';
 import {
+  buildYoutubeOAuthUrl,
+  exchangeYoutubeOAuthCode,
+  fetchYoutubeChannelForToken,
+} from '../../services/youtube-oauth.js';
+import {
+  clearYoutubeSocialConfig,
+  getYoutubeSocialConfig,
+  isYoutubeOAuthConfigured,
+  upsertYoutubeSocialConfig,
+  youtubeSocialPublicFromConfig,
+} from '../../services/youtube-social-credentials.js';
+import {
   listSocialPostRuns,
   previewSocialPost,
   publishSocialPost,
@@ -65,9 +77,15 @@ const previewBody = z.object({
 const publishBody = z.object({
   template: templateSchema,
   force: z.boolean().optional(),
+  retryFailed: z.boolean().optional(),
+});
+
+const youtubeSaveBody = z.object({
+  publishEnabled: z.boolean(),
 });
 
 const OAUTH_STATE_PREFIX = 'social:meta-oauth:';
+const YOUTUBE_OAUTH_STATE_PREFIX = 'social:youtube-oauth:';
 
 type MetaOAuthSession = {
   pages: Awaited<ReturnType<typeof fetchMetaPages>>;
@@ -87,8 +105,8 @@ async function readMetaOAuthSession(
 }
 
 function oauthResultHtml(adminOrigin: string, title: string, body: string, query = ''): string {
-  const socialUrl = `${adminOrigin.replace(/\/$/, '')}/social${query ? `?${query}` : ''}`;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>${title}</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;max-width:40rem"><h1>${title}</h1><p>${body}</p><p><a href="${socialUrl}">Return to Social posts</a></p><script>setTimeout(()=>window.close(),8000)</script></body></html>`;
+  const returnUrl = `${adminOrigin.replace(/\/$/, '')}/settings/integrations${query ? `?${query}` : ''}`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>${title}</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;max-width:40rem"><h1>${title}</h1><p>${body}</p><p><a href="${returnUrl}">Return to Integrations</a></p><script>setTimeout(()=>window.close(),8000)</script></body></html>`;
 }
 
 function zodMessage(err: z.ZodError): string {
@@ -111,11 +129,17 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
   app.get('/social/status', { ...guard }, async (_req, reply) => {
     try {
       const config = await getMetaSocialConfig(ctx().env);
+      const youtube = await getYoutubeSocialConfig(ctx().env);
       return reply.send({
         configured: config != null,
         oauthAvailable: isMetaOAuthConfigured(ctx().env),
         oauthScopes: buildMetaOAuthScopes(ctx().env),
         meta: config ? metaSocialPublicFromConfig(config, ctx().env) : null,
+        youtube: {
+          configured: youtube != null,
+          oauthAvailable: isYoutubeOAuthConfigured(ctx().env),
+          channel: youtube ? youtubeSocialPublicFromConfig(youtube) : null,
+        },
         brand: {
           website: 'https://thrwa.co',
           facebook: 'https://www.facebook.com/thrwa.co',
@@ -197,6 +221,117 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
       const admin = req.admin!;
       await clearMetaSocialConfig();
       await writeAdminAudit(admin.id, 'admin.social.meta.clear', {}, clientIp(req));
+      return reply.send({ ok: true });
+    } catch (e) {
+      if (!reply.sent) sendError(reply, e);
+    }
+  });
+
+  app.get('/social/youtube/oauth/start', { ...superadminGuard }, async (req, reply) => {
+    try {
+      if (!isYoutubeOAuthConfigured(ctx().env)) {
+        throw new AppError('CONFIG', 'YouTube OAuth env vars are not configured', 503);
+      }
+      const state = randomUUID();
+      await ctx().redis.set(`${YOUTUBE_OAUTH_STATE_PREFIX}${state}`, req.admin!.id, 'EX', 600);
+      return reply.send({ url: buildYoutubeOAuthUrl(ctx().env, state), state });
+    } catch (e) {
+      if (!reply.sent) sendError(reply, e);
+    }
+  });
+
+  app.get('/social/youtube/oauth/callback', async (req, reply) => {
+    const adminOrigin = ctx().env.ADMIN_PUBLIC_ORIGIN;
+    try {
+      const raw = req.query as Record<string, unknown>;
+      const oauthError = typeof raw.error === 'string' ? raw.error : null;
+      if (oauthError) {
+        return reply
+          .type('text/html')
+          .send(
+            oauthResultHtml(
+              adminOrigin,
+              'YouTube connection failed',
+              `Google returned: ${oauthError}`,
+            ),
+          );
+      }
+
+      const query = z
+        .object({ code: z.string().min(1), state: z.string().min(1) })
+        .safeParse(req.query);
+      if (!query.success) {
+        return reply
+          .type('text/html')
+          .send(oauthResultHtml(adminOrigin, 'YouTube connection failed', 'Missing OAuth code or state.'));
+      }
+
+      const adminId = await ctx().redis.get(`${YOUTUBE_OAUTH_STATE_PREFIX}${query.data.state}`);
+      if (!adminId) {
+        return reply
+          .type('text/html')
+          .send(oauthResultHtml(adminOrigin, 'YouTube connection failed', 'Invalid or expired OAuth state.'));
+      }
+      await ctx().redis.del(`${YOUTUBE_OAUTH_STATE_PREFIX}${query.data.state}`);
+
+      const tokens = await exchangeYoutubeOAuthCode(ctx().env, query.data.code);
+      const channel = await fetchYoutubeChannelForToken(tokens.accessToken);
+      await upsertYoutubeSocialConfig(adminId, {
+        channelId: channel.channelId,
+        channelTitle: channel.channelTitle,
+        refreshToken: tokens.refreshToken,
+        publishEnabled: true,
+      });
+      await writeAdminAudit(adminId, 'admin.social.youtube.connect', { channelId: channel.channelId });
+
+      return reply.type('text/html').send(
+        oauthResultHtml(
+          adminOrigin,
+          'YouTube connected',
+          `Channel «${channel.channelTitle}» is ready for daily Shorts.`,
+          'youtube=ok',
+        ),
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (!reply.sent) {
+        return reply
+          .type('text/html')
+          .send(oauthResultHtml(adminOrigin, 'YouTube connection failed', message));
+      }
+    }
+  });
+
+  app.put('/social/youtube', { ...superadminGuard }, async (req, reply) => {
+    try {
+      const admin = req.admin!;
+      const parsed = youtubeSaveBody.safeParse(req.body);
+      if (!parsed.success) throw new AppError('VALIDATION', zodMessage(parsed.error), 400);
+      const existing = await getYoutubeSocialConfig(ctx().env);
+      if (!existing) {
+        throw new AppError('NOT_FOUND', 'YouTube is not connected', 404);
+      }
+      const publicInfo = await upsertYoutubeSocialConfig(admin.id, {
+        ...existing,
+        publishEnabled: parsed.data.publishEnabled,
+      });
+      await writeAdminAudit(
+        admin.id,
+        'admin.social.youtube.update',
+        { publishEnabled: parsed.data.publishEnabled },
+        clientIp(req),
+      );
+      return reply.send({ ok: true, channel: publicInfo });
+    } catch (e) {
+      if (!reply.sent) sendError(reply, e);
+    }
+  });
+
+  app.delete('/social/youtube', { ...superadminGuard }, async (req, reply) => {
+    try {
+      const admin = req.admin!;
+      await clearYoutubeSocialConfig();
+      await writeAdminAudit(admin.id, 'admin.social.youtube.clear', {}, clientIp(req));
       return reply.send({ ok: true });
     } catch (e) {
       if (!reply.sent) sendError(reply, e);
@@ -428,12 +563,17 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
         template: parsed.data.template as SocialTemplateKey,
         triggeredBy: admin.id,
         force: parsed.data.force,
+        retryFailed: parsed.data.retryFailed,
       });
 
       await writeAdminAudit(
         admin.id,
         'admin.social.publish',
-        { template: parsed.data.template, force: parsed.data.force ?? false },
+        {
+          template: parsed.data.template,
+          force: parsed.data.force ?? false,
+          retryFailed: parsed.data.retryFailed ?? false,
+        },
         clientIp(req),
       );
 

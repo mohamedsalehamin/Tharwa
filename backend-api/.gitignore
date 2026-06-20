@@ -7,3 +7,5 @@ dist/
 coverage/
 data/uploads/
 *.tsbuildinfo
+.venv*/
+demo/

@@ -14,6 +14,42 @@ const execFileAsync = promisify(execFile);
 
 const DEFAULT_SPEED = 0.9;
 
+function parseDurationHms(match: RegExpMatchArray): number {
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const seconds = Number(match[3]);
+  const total = hours * 3600 + minutes * 60 + seconds;
+  if (!Number.isFinite(total) || total <= 0) {
+    throw new Error('Invalid audio duration');
+  }
+  return total;
+}
+
+async function probeAudioDurationWithFfmpeg(audioPath: string): Promise<number> {
+  let stderr = '';
+  try {
+    const result = await execFileAsync(
+      'ffmpeg',
+      ['-hide_banner', '-i', audioPath, '-f', 'null', '-'],
+      { maxBuffer: 10 * 1024 * 1024 },
+    );
+    stderr = String(result.stderr ?? '');
+  } catch (err: unknown) {
+    const execErr = err as NodeJS.ErrnoException & { stderr?: string | Buffer };
+    if (execErr.code === 'ENOENT') {
+      throw new Error(
+        'ffmpeg not found on PATH (required for gold short video generation). Install ffmpeg on the server.',
+      );
+    }
+    stderr = String(execErr.stderr ?? execErr.message ?? '');
+  }
+  const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+  if (!match) {
+    throw new Error(`Could not read audio duration: ${audioPath}`);
+  }
+  return parseDurationHms(match);
+}
+
 function atempoFilter(speed: number): string {
   if (speed <= 0 || speed > 4) {
     throw new Error(`Invalid speed ${speed}; use e.g. 0.85–1.0`);
@@ -66,18 +102,22 @@ export async function synthesizeGoldVoiceover(
 }
 
 export async function probeAudioDurationSeconds(audioPath: string): Promise<number> {
-  const { stdout } = await execFileAsync('ffprobe', [
-    '-v',
-    'error',
-    '-show_entries',
-    'format=duration',
-    '-of',
-    'default=noprint_wrappers=1:nokey=1',
-    audioPath,
-  ]);
-  const seconds = Number(stdout.trim());
-  if (!Number.isFinite(seconds) || seconds <= 0) {
-    throw new Error(`Could not read audio duration: ${audioPath}`);
+  try {
+    const { stdout } = await execFileAsync('ffprobe', [
+      '-v',
+      'error',
+      '-show_entries',
+      'format=duration',
+      '-of',
+      'default=noprint_wrappers=1:nokey=1',
+      audioPath,
+    ]);
+    const seconds = Number(stdout.trim());
+    if (Number.isFinite(seconds) && seconds > 0) return seconds;
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+      return probeAudioDurationWithFfmpeg(audioPath);
+    }
   }
-  return seconds;
+  return probeAudioDurationWithFfmpeg(audioPath);
 }

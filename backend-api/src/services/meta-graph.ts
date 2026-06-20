@@ -428,18 +428,50 @@ export async function publishFacebookStoryPhoto(args: {
   return story.id ?? photo.id;
 }
 
+/** Page video story — requires upload_phase start → rupload → finish (not /videos + video_id alone). */
 export async function publishFacebookStoryVideo(args: {
   config: MetaSocialConfig;
   videoUrl: string;
 }): Promise<string> {
-  const video = await graphPostJson<{ id: string }>(`/${args.config.pageId}/videos`, {
-    file_url: args.videoUrl,
-    published: 'false',
-    access_token: args.config.pageAccessToken,
+  const session = await graphPostJson<{ video_id: string; upload_url: string }>(
+    `/${args.config.pageId}/video_stories`,
+    {
+      upload_phase: 'start',
+      access_token: args.config.pageAccessToken,
+    },
+  );
+
+  await ruploadHostedVideo(session.upload_url, args.videoUrl, args.config.pageAccessToken);
+
+  const story = await graphPostJson<{ success?: boolean; post_id?: string }>(
+    `/${args.config.pageId}/video_stories`,
+    {
+      upload_phase: 'finish',
+      video_id: session.video_id,
+      access_token: args.config.pageAccessToken,
+    },
+  );
+  return story.post_id ?? session.video_id;
+}
+
+async function ruploadHostedVideo(
+  uploadUrl: string,
+  fileUrl: string,
+  accessToken: string,
+): Promise<void> {
+  const url = new URL(uploadUrl);
+  if (!url.searchParams.has('access_token')) {
+    url.searchParams.set('access_token', accessToken);
+  }
+  const res = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      Authorization: `OAuth ${accessToken}`,
+      file_url: fileUrl,
+    },
   });
-  const story = await graphPostJson<{ id?: string }>(`/${args.config.pageId}/video_stories`, {
-    video_id: video.id,
-    access_token: args.config.pageAccessToken,
-  });
-  return story.id ?? video.id;
+  const json = (await res.json()) as { success?: boolean; error?: { message?: string } };
+  if (!res.ok || json.success !== true) {
+    throw new Error(json.error?.message ?? `Meta video story upload failed (${res.status})`);
+  }
 }

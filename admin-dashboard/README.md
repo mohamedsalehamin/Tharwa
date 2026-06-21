@@ -70,3 +70,46 @@ Backend enforces the same rules (`403` when insufficient).
 | `npm run build` | Typecheck + production bundle |
 | `npm run lint` | ESLint |
 | `npm run preview` | Preview production build |
+| `npm start` | Same as preview on **0.0.0.0:3001** (aaPanel Node start command after `npm run build`) |
+
+## Production (aaPanel)
+
+The admin is a static Vite SPA. Choose one deployment style:
+
+### Option A — nginx serves `dist/` (recommended)
+
+No Node process on port 3001. Build once, nginx serves files:
+
+```bash
+cd admin-dashboard
+cp .env.example .env   # set VITE_API_BASE=https://api.thrwa.co before build
+npm install
+npm run build
+```
+
+Nginx site config (replace the `proxy_pass` block):
+
+```nginx
+root /www/wwwroot/7aduta.com/Tharwa/admin-dashboard/dist;
+index index.html;
+
+location / {
+    try_files $uri $uri/ /index.html;
+}
+```
+
+Rebuild after changing any `VITE_*` variable (values are baked into the bundle at build time).
+
+### Option B — aaPanel Node project on port 3001
+
+Keep your existing nginx `proxy_pass http://127.0.0.1:3001`, but the Node app must be running:
+
+1. **Start command:** `npm start` (runs `vite preview` on port **3001** — not the default 4173).
+2. **Run after every deploy:** `npm install && npm run build &&` restart the Node project.
+3. Ensure `.env` exists in the project root with `VITE_API_BASE=https://api.thrwa.co` **before** `npm run build`.
+
+If you still see **502**, the process is not listening on 3001 — check aaPanel Node logs and run on the server:
+
+```bash
+curl -I http://127.0.0.1:3001/
+```

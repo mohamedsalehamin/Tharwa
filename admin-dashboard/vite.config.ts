@@ -21,6 +21,10 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    port: 3001,
+    host: true,
+  },
   plugins: [
     tanstackRouter({
       target: 'react',

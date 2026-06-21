@@ -13,6 +13,13 @@ const backendTarget =
 export default defineConfig({
   server: {
     port: 3001,
+    host: true,
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      'admin.thrwa.co',
+      'admin.7aduta.com',
+    ],
     proxy: {
       '/__tharwa_api': {
         target: backendTarget,
@@ -24,6 +31,12 @@ export default defineConfig({
   preview: {
     port: 3001,
     host: true,
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      'admin.thrwa.co',
+      'admin.7aduta.com',
+    ],
   },
   plugins: [
     tanstackRouter({

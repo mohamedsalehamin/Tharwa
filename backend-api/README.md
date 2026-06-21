@@ -30,6 +30,7 @@ npm test              # Vitest — unit + HTTP contract tests (no live Postgres/
 - Env: `ADMIN_JWT_SECRET` (≥16 chars; prefer 32+ in prod), `ADMIN_ACCESS_TOKEN_TTL_SEC` (default 3600)
 - Put every browser origin in `CORS_ORIGINS` (website, admin UI, etc.). The API reflects **one** matching origin per request via `@fastify/cors`.
 - **Do not set `Access-Control-*` headers in nginx** (aaPanel site config) when proxying to this app — duplicate headers break CORS in the browser. Remove nginx `add_header Access-Control-*` and the `if ($request_method = OPTIONS)` shortcut; let Node handle preflight.
+- After deploy, `GET /health` includes `corsOrigins` (count). If it is `4` in production, `CORS_ORIGINS` was not loaded — set it in aaPanel **or** ensure `.env` lives in the Node project root and restart after `npm run build`.
 - In **`NODE_ENV=development`**, responses also allow browser `Origin` values on **private LAN** hosts (`192.168.x.x`, `10.x.x.x`, `172.16–31.x.x`) so you can open the admin UI at `http://<your-LAN-IP>:3001` without listing every IP in `CORS_ORIGINS`. Production still uses the explicit list only.
 - **Push (FCM):** `GET /admin/v1/push/audiences`, `POST /admin/v1/push/broadcast` — audiences: `all`, `registered`, `ios`, `android`. Upload the Firebase service account in **Settings → Integrations** (`/settings`) or set optional env `FCM_SERVICE_ACCOUNT_JSON`.
 - **Integrations:** `GET /admin/v1/settings/integrations`, `PUT/DELETE /admin/v1/settings/integrations/fcm` — stores FCM credentials in Postgres (private key never returned on read).

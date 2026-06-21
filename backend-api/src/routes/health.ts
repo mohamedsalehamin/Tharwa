@@ -26,6 +26,7 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
       checks,
       service: app.ctx.env.SERVICE_NAME,
       build: app.ctx.env.BUILD_SHA,
+      corsOrigins: app.ctx.env.CORS_ORIGINS.length,
     });
   });
 };

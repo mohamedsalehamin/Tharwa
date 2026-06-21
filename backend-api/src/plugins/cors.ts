@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from 'fastify';
+import fp from 'fastify-plugin';
 import cors from '@fastify/cors';
 
 export type CorsPluginOpts = {
@@ -25,25 +25,28 @@ function isPrivateLanHttpOrigin(origin: string): boolean {
   }
 }
 
-export const corsPlugin: FastifyPluginAsync<CorsPluginOpts> = async (app, opts) => {
-  const allowList = new Set(opts.origins);
+export const corsPlugin = fp<CorsPluginOpts>(
+  async (app, opts) => {
+    const allowList = new Set(opts.origins);
 
-  await app.register(cors, {
-    origin: (origin, callback) => {
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-      if (allowList.has(origin)) {
-        callback(null, true);
-        return;
-      }
-      if (opts.allowPrivateLanInDev && isPrivateLanHttpOrigin(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(null, false);
-    },
-    credentials: true,
-  });
-};
+    await app.register(cors, {
+      origin: (origin, callback) => {
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+        if (allowList.has(origin)) {
+          callback(null, true);
+          return;
+        }
+        if (opts.allowPrivateLanInDev && isPrivateLanHttpOrigin(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(null, false);
+      },
+      credentials: true,
+    });
+  },
+  { name: 'tharwa-cors' },
+);

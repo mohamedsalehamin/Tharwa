@@ -1,6 +1,4 @@
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { loadEnvFile } from 'node:process';
+import { loadDotEnvFromProject } from './lib/load-dotenv.js';
 import { loadEnv } from './config/env.js';
 import { buildApp } from './app.js';
 import { createLogger } from './lib/logger.js';
@@ -24,18 +22,28 @@ import {
 } from './jobs/evaluate-price-alerts.js';
 import { startSocialPosts, stopSocialPosts } from './jobs/publish-social-posts.js';
 
-function loadDotEnvFromCwd(): void {
-  const envPath = resolve(process.cwd(), '.env');
-  if (!existsSync(envPath)) return;
-  loadEnvFile(envPath);
+function warnIfProductionCorsMisconfigured(env: Awaited<ReturnType<typeof loadEnv>>, log: ReturnType<typeof createLogger>): void {
+  if (env.NODE_ENV !== 'production') return;
+  const looksLocalOnly = env.CORS_ORIGINS.every(
+    (origin) => origin.includes('localhost') || origin.includes('127.0.0.1'),
+  );
+  if (looksLocalOnly) {
+    log.warn(
+      'CORS_ORIGINS still looks like localhost defaults in production — set production origins in aaPanel env or project .env',
+    );
+  }
 }
 
 async function main() {
-  loadDotEnvFromCwd();
+  const dotenvPath = loadDotEnvFromProject(import.meta.url);
   const env = loadEnv();
   await initObservability(env);
   const log = createLogger(env.NODE_ENV);
-  log.info({ corsOrigins: env.CORS_ORIGINS.length }, 'CORS allow-list loaded');
+  log.info(
+    { corsOrigins: env.CORS_ORIGINS, dotenvPath: dotenvPath ?? null },
+    'CORS allow-list loaded',
+  );
+  warnIfProductionCorsMisconfigured(env, log);
   const redis = getRedis(env.REDIS_URL, log);
   await redis.connect().catch(() => undefined);
 

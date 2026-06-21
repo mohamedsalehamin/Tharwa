@@ -28,7 +28,8 @@ npm test              # Vitest — unit + HTTP contract tests (no live Postgres/
 - Public `GET /v1/fx/rates` and `GET /v1/metals` honor `instruments.is_consumer_visible` and FX `metadata.quoteCategory` (seed migration `0012_seed_fx_metals_presentation`)
 - Upstream `config` is JSON (non-secret); `secretRef` is an **environment variable name** resolved at runtime (`SECRETS_BACKEND=env`). See [docs/secrets.md](./docs/secrets.md) — never store raw tokens in the database.
 - Env: `ADMIN_JWT_SECRET` (≥16 chars; prefer 32+ in prod), `ADMIN_ACCESS_TOKEN_TTL_SEC` (default 3600)
-- Put the admin UI origin in `CORS_ORIGINS` when it is not covered below (e.g. a custom hostname).
+- Put every browser origin in `CORS_ORIGINS` (website, admin UI, etc.). The API reflects **one** matching origin per request via `@fastify/cors`.
+- **Do not set `Access-Control-*` headers in nginx** (aaPanel site config) when proxying to this app — duplicate headers break CORS in the browser. Remove nginx `add_header Access-Control-*` and the `if ($request_method = OPTIONS)` shortcut; let Node handle preflight.
 - In **`NODE_ENV=development`**, responses also allow browser `Origin` values on **private LAN** hosts (`192.168.x.x`, `10.x.x.x`, `172.16–31.x.x`) so you can open the admin UI at `http://<your-LAN-IP>:3001` without listing every IP in `CORS_ORIGINS`. Production still uses the explicit list only.
 - **Push (FCM):** `GET /admin/v1/push/audiences`, `POST /admin/v1/push/broadcast` — audiences: `all`, `registered`, `ios`, `android`. Upload the Firebase service account in **Settings → Integrations** (`/settings`) or set optional env `FCM_SERVICE_ACCOUNT_JSON`.
 - **Integrations:** `GET /admin/v1/settings/integrations`, `PUT/DELETE /admin/v1/settings/integrations/fcm` — stores FCM credentials in Postgres (private key never returned on read).

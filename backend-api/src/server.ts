@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { loadEnvFile } from 'node:process';
 import { loadEnv } from './config/env.js';
 import { buildApp } from './app.js';
 import { createLogger } from './lib/logger.js';
@@ -21,10 +24,18 @@ import {
 } from './jobs/evaluate-price-alerts.js';
 import { startSocialPosts, stopSocialPosts } from './jobs/publish-social-posts.js';
 
+function loadDotEnvFromCwd(): void {
+  const envPath = resolve(process.cwd(), '.env');
+  if (!existsSync(envPath)) return;
+  loadEnvFile(envPath);
+}
+
 async function main() {
+  loadDotEnvFromCwd();
   const env = loadEnv();
   await initObservability(env);
   const log = createLogger(env.NODE_ENV);
+  log.info({ corsOrigins: env.CORS_ORIGINS.length }, 'CORS allow-list loaded');
   const redis = getRedis(env.REDIS_URL, log);
   await redis.connect().catch(() => undefined);
 

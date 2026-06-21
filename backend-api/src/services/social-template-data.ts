@@ -3,7 +3,10 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { Env } from '../config/env.js';
 import { cairoDateKey } from './egx-trading-day.js';
 import { fetchMarketBriefSnapshot } from './daily-brief.js';
-import { getMetalsCached } from './quotes.js';
+import {
+  extractGoldSocialPrices,
+  getConsumerMetalsQuotes,
+} from './consumer-metals-quotes.js';
 import { getEgxMoversCached } from './stocks.js';
 import type { GoldVoiceoverInput } from './gold-voiceover-script.js';
 import type { SocialTemplateKey } from './social-templates.js';
@@ -40,26 +43,6 @@ function arabicDate(now = new Date()): string {
   }).format(now);
 }
 
-function metalByKarat(
-  items: Awaited<ReturnType<typeof getMetalsCached>>['items'],
-  karat: number,
-): number | null {
-  const row = items.find((i) => i.karat === karat && i.unit === 'gram');
-  return row && Number.isFinite(row.amountEgp) ? row.amountEgp : null;
-}
-
-function metalOunce(items: Awaited<ReturnType<typeof getMetalsCached>>['items']): number | null {
-  const row = items.find((i) => i.unit === 'troy_ounce');
-  return row && Number.isFinite(row.amountEgp) ? row.amountEgp : null;
-}
-
-function metalPound(items: Awaited<ReturnType<typeof getMetalsCached>>['items']): number | null {
-  const direct = items.find((i) => i.unit === 'gold_pound');
-  if (direct && Number.isFinite(direct.amountEgp)) return direct.amountEgp;
-  const k21 = metalByKarat(items, 21);
-  return k21 != null ? Math.round(k21 * 8) : null;
-}
-
 export type PlatformCaptions = {
   igReel: string;
   fbReel: string;
@@ -89,12 +72,8 @@ export async function buildSocialContent(
   log: FastifyBaseLogger,
   template: SocialTemplateKey,
 ): Promise<SocialContentBundle | null> {
-  const { items } = await getMetalsCached(env, redis, log);
-  const gold21 = metalByKarat(items, 21);
-  const gold18 = metalByKarat(items, 18);
-  const gold24 = metalByKarat(items, 24);
-  const goldOunce = metalOunce(items);
-  const goldPound = metalPound(items);
+  const { items, bundleFetchedAt } = await getConsumerMetalsQuotes(env, redis, log);
+  const { gold18, gold21, gold24, goldOunce, goldPound } = extractGoldSocialPrices(items);
 
   const dateAr = arabicDate();
   const playStore = env.SOCIAL_PLAY_STORE_URL;
@@ -102,6 +81,17 @@ export async function buildSocialContent(
 
   if (template === 'gold_daily' || template === 'gold_alert') {
     if (gold21 == null) return null;
+
+    log.info(
+      {
+        template,
+        gold21,
+        bundleFetchedAt,
+        gold21AsOf: items.find((i) => i.karat === 21 && i.unit === 'gram')?.asOf ?? null,
+        dateAr,
+      },
+      'social gold content built from consumer metals quotes (GET /v1/metals)',
+    );
 
     const today = cairoDateKey();
     const openRaw = await redis.get(`${GOLD_OPEN_KEY}:${today}`);

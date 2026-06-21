@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { DISCLAIMER_COMBINED } from '../../i18n/disclaimers.js';
-import { getFxRatesCached, getMetalsCached } from '../../services/quotes.js';
+import { getConsumerMetalsQuotes } from '../../services/consumer-metals-quotes.js';
+import { getFxRatesCached } from '../../services/quotes.js';
 import { getEgxSessionState } from '../../services/session-egx.js';
 import { AppError, sendError } from '../../lib/errors.js';
 
@@ -17,7 +18,7 @@ export const v1MarketRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/metals', async (_req, reply) => {
     try {
-      const { items } = await getMetalsCached(app.ctx.env, app.ctx.redis, app.log);
+      const { items } = await getConsumerMetalsQuotes(app.ctx.env, app.ctx.redis, app.log);
       return reply.send({ disclaimer: DISCLAIMER_COMBINED, items });
     } catch (e) {
       if (!reply.sent) sendError(reply, e);
@@ -29,7 +30,7 @@ export const v1MarketRoutes: FastifyPluginAsync = async (app) => {
     try {
       const [fx, metals] = await Promise.all([
         getFxRatesCached(app.ctx.env, app.ctx.redis, app.log),
-        getMetalsCached(app.ctx.env, app.ctx.redis, app.log),
+        getConsumerMetalsQuotes(app.ctx.env, app.ctx.redis, app.log),
       ]);
       return reply.send({
         disclaimer: DISCLAIMER_COMBINED,

@@ -52,7 +52,7 @@ export async function getFxRatesCached(
   });
 
   const staleItems = applyStale(data.items, fetchedAt);
-  const items = await applyFxPresentation(staleItems);
+  const items = await applyFxPresentation(env, staleItems);
 
   return {
     items,

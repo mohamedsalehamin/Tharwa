@@ -51,6 +51,37 @@ describe('applyMetalsPresentation metal flags', () => {
     ]);
   });
 
+  it('rebases legacy api.7aduta.com flag URLs onto PUBLIC_FILES_ORIGIN', async () => {
+    mockFindFirst.mockImplementation(({ where }: { where?: { code?: string } }) => {
+      if (where?.code === 'GOLD_EGP') {
+        return Promise.resolve({
+          isConsumerVisible: true,
+          metadata: { flagUrl: 'https://api.7aduta.com/files/metal-flags/GOLD_EGP.png' },
+        });
+      }
+      if (where?.code === 'SILVER_EGP') {
+        return Promise.resolve({ isConsumerVisible: true, metadata: null });
+      }
+      return Promise.resolve(null);
+    });
+    mockFindMany.mockResolvedValue([]);
+
+    const out = await applyMetalsPresentation(env, [
+      {
+        metal: 'gold',
+        unit: 'gram',
+        karat: 24,
+        amountEgp: 6000,
+        asOf: '2026-06-20T12:00:00.000Z',
+        quoteCategory: 'indicative',
+        sessionState: 'unknown',
+        isStale: false,
+      },
+    ]);
+
+    expect(out[0]?.flagUrl).toBe('https://api.test/files/metal-flags/GOLD_EGP.png');
+  });
+
   it('uses per-instrument flag for gold pound when uploaded', async () => {
     const items: MetalItem[] = [
       {

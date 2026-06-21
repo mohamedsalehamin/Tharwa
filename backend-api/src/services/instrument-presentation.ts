@@ -17,6 +17,7 @@ import { prisma } from '../lib/prisma.js';
 import {
   instrumentFlagRelativePath,
   publicFileUrl,
+  resolvePublicFileUrl,
 } from './instrument-flag-storage.js';
 import type { FxRateItem } from './connectors/fx.js';
 import type { MetalItem } from './connectors/metals.js';
@@ -30,7 +31,7 @@ export type FxPresentationRow = {
   flagUrl?: string;
 };
 
-export async function loadFxPresentationConfig(): Promise<{
+export async function loadFxPresentationConfig(env: Env): Promise<{
   visibleCodes: Set<string>;
   orderByCode: Map<string, number>;
   presentationByCode: Map<string, FxPresentationRow>;
@@ -60,7 +61,7 @@ export async function loadFxPresentationConfig(): Promise<{
           displayNameEn: r.displayNameEn,
           displayNameAr: r.displayNameAr,
           quoteCategory: quoteCategory ?? 'official',
-          flagUrl,
+          flagUrl: flagUrl ? resolvePublicFileUrl(env, flagUrl) : undefined,
         },
       ] as const;
     }),
@@ -69,8 +70,8 @@ export async function loadFxPresentationConfig(): Promise<{
 }
 
 /** Filter and label FX rates per admin instrument visibility (FR-009). */
-export async function applyFxPresentation(items: FxRateItem[]): Promise<FxRateItem[]> {
-  const { visibleCodes, orderByCode, presentationByCode } = await loadFxPresentationConfig();
+export async function applyFxPresentation(env: Env, items: FxRateItem[]): Promise<FxRateItem[]> {
+  const { visibleCodes, orderByCode, presentationByCode } = await loadFxPresentationConfig(env);
   if (visibleCodes.size === 0) return [];
 
   const filtered = items
@@ -113,11 +114,13 @@ export async function loadMetalPresentation(env: Env): Promise<{
       select: { isConsumerVisible: true, metadata: true },
     }),
   ]);
+  const goldFlag = parseFlagUrl(gold?.metadata);
+  const silverFlag = parseFlagUrl(silver?.metadata);
   return {
     goldVisible: gold?.isConsumerVisible ?? false,
     silverVisible: silver?.isConsumerVisible ?? false,
-    goldFlagUrl: parseFlagUrl(gold?.metadata),
-    silverFlagUrl: parseFlagUrl(silver?.metadata),
+    goldFlagUrl: goldFlag ? resolvePublicFileUrl(env, goldFlag) : undefined,
+    silverFlagUrl: silverFlag ? resolvePublicFileUrl(env, silverFlag) : undefined,
   };
 }
 
@@ -152,7 +155,7 @@ async function loadMetalQuoteFlagByCode(env: Env): Promise<Map<string, string>> 
   for (const row of rows) {
     const fromMeta = parseFlagUrl(row.metadata);
     if (fromMeta) {
-      map.set(row.code, fromMeta);
+      map.set(row.code, resolvePublicFileUrl(env, fromMeta));
       continue;
     }
     const fromDisk = await metalFlagUrlFromUploadFile(env, row.code);

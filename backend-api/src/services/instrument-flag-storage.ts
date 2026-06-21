@@ -45,6 +45,26 @@ export function publicFileUrl(env: Env, relativePath: string, requestOrigin?: st
   return `${origin}${rel}`;
 }
 
+/** Extract `/files/...` from a stored relative or absolute public upload URL. */
+export function publicUploadRelativePath(storedUrl: string): string | undefined {
+  const trimmed = storedUrl.trim();
+  if (trimmed.startsWith('/files/')) return trimmed;
+  try {
+    const pathname = new URL(trimmed).pathname;
+    if (pathname.startsWith('/files/')) return pathname;
+  } catch {
+    /* ignore invalid URLs */
+  }
+  return undefined;
+}
+
+/** Rebase stored upload URLs onto the current public files origin. */
+export function resolvePublicFileUrl(env: Env, storedUrl: string, requestOrigin?: string): string {
+  const rel = publicUploadRelativePath(storedUrl);
+  if (rel) return publicFileUrl(env, rel, requestOrigin);
+  return storedUrl;
+}
+
 export async function saveInstrumentFlagFile(
   env: Env,
   kind: InstrumentFlagKind,

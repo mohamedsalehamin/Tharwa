@@ -178,7 +178,7 @@ const envSchema = z.object({
   /** Optional comma-separated OAuth scopes override (defaults to Facebook Page scopes). */
   META_OAUTH_SCOPES: z.string().min(1).optional(),
   /** Admin dashboard origin for OAuth callback links (defaults to thrwa admin host). */
-  ADMIN_PUBLIC_ORIGIN: z.string().url().default('https://admin.7aduta.com'),
+  ADMIN_PUBLIC_ORIGIN: z.string().url().default('https://admin.thrwa.co'),
   /** Directory containing social SVG templates (defaults to backend assets copy). */
   SOCIAL_TEMPLATES_DIR: z.string().min(1).default('./assets/social-templates'),
   /** Public origin for temporary social images (Instagram requires image_url). */

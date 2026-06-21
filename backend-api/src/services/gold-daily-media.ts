@@ -21,7 +21,7 @@ export async function assertGoldDailyMediaEnv(env: Env): Promise<void> {
   const origin = env.SOCIAL_PUBLIC_FILES_ORIGIN ?? env.PUBLIC_FILES_ORIGIN;
   if (!origin) {
     throw new Error(
-      'Set SOCIAL_PUBLIC_FILES_ORIGIN (or PUBLIC_FILES_ORIGIN) to your public API URL, e.g. https://api.7aduta.com',
+      'Set SOCIAL_PUBLIC_FILES_ORIGIN (or PUBLIC_FILES_ORIGIN) to your public API URL, e.g. https://api.thrwa.co',
     );
   }
   const geminiKey =

@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { resolveCorsOrigins } from '../lib/cors-origins.js';
 import { prisma } from '../lib/prisma.js';
 
 export const healthRoutes: FastifyPluginAsync = async (app) => {
@@ -26,7 +27,7 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
       checks,
       service: app.ctx.env.SERVICE_NAME,
       build: app.ctx.env.BUILD_SHA,
-      corsOrigins: app.ctx.env.CORS_ORIGINS.length,
+      corsOrigins: resolveCorsOrigins(app.ctx.env).length,
     });
   });
 };

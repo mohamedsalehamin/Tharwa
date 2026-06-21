@@ -1,4 +1,5 @@
 import { loadDotEnvFromProject } from './lib/load-dotenv.js';
+import { resolveCorsOrigins } from './lib/cors-origins.js';
 import { loadEnv } from './config/env.js';
 import { buildApp } from './app.js';
 import { createLogger } from './lib/logger.js';
@@ -40,7 +41,10 @@ async function main() {
   await initObservability(env);
   const log = createLogger(env.NODE_ENV);
   log.info(
-    { corsOrigins: env.CORS_ORIGINS, dotenvPath: dotenvPath ?? null },
+    {
+      corsOrigins: resolveCorsOrigins(env),
+      dotenvPath: dotenvPath ?? null,
+    },
     'CORS allow-list loaded',
   );
   warnIfProductionCorsMisconfigured(env, log);

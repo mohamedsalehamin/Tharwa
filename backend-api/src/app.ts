@@ -4,6 +4,7 @@ import Fastify from 'fastify';
 import type { Env } from './config/env.js';
 import type { AppCtx } from './app-context.js';
 import { corsPlugin } from './plugins/cors.js';
+import { resolveCorsOrigins } from './lib/cors-origins.js';
 import { observabilityPlugin } from './plugins/observability.js';
 import { publicHttpCachePlugin } from './plugins/public-http-cache.js';
 import { publicUploadsPlugin } from './plugins/public-uploads.js';
@@ -65,7 +66,7 @@ export async function buildApp(env: Env, ctx: AppCtx) {
   await app.register(observabilityPlugin);
   await app.register(metricsRoutes);
   await app.register(corsPlugin, {
-    origins: env.CORS_ORIGINS,
+    origins: resolveCorsOrigins(env),
     allowPrivateLanInDev: env.NODE_ENV === 'development',
   });
   await app.register(publicMarketRateLimitPlugin, { env });

@@ -1,0 +1,10 @@
+# Tharwa / thrwa — official links (marketing & automation defaults)
+
+WEBSITE=https://thrwa.co
+DOWNLOAD_ANDROID=https://thrwa.co/download/android
+DOWNLOAD_IOS=https://thrwa.co/download/ios
+FACEBOOK=https://www.facebook.com/thrwa.co
+INSTAGRAM=https://www.instagram.com/thrwa.co
+
+# Hashtags (Arabic brand + English shorthand)
+HASHTAGS=#ثروة #thrwa

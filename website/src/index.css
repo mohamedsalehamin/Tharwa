@@ -1,12 +1,20 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Inter', 'Noto Sans Arabic', system-ui, sans-serif;
-  --color-brand: #0f766e;
-  --color-brand-dark: #115e59;
-  --color-surface: #f8fafc;
-  --color-ink: #0f172a;
-  --color-muted: #64748b;
+  --font-sans: 'Inter', 'Cairo', system-ui, sans-serif;
+  --color-navy: #0a1a2f;
+  --color-navy-light: #112240;
+  --color-gold: #c9a227;
+  --color-gold-pressed: #a8841c;
+  --color-emerald: #00c853;
+  --color-crimson: #ff3b30;
+  --color-soft-gray: #8a94a6;
+  --color-divider: #0f2538;
+  --color-ink: #0a1a2f;
+  --color-surface: #f8f9fb;
+  --color-muted: #5c6676;
+  --color-brand: #c9a227;
+  --color-brand-dark: #a8841c;
 }
 
 @layer base {
@@ -15,18 +23,18 @@
   }
 
   body {
-    @apply min-h-svh bg-white font-sans text-ink antialiased;
-  }
-
-  a {
-    @apply text-brand hover:text-brand-dark;
+    @apply min-h-svh bg-surface font-sans text-ink antialiased;
   }
 }
 
 .prose-page {
-  @apply max-w-none leading-relaxed text-slate-700;
+  @apply max-w-none leading-relaxed text-muted;
 }
 
 .prose-page p {
   @apply mb-4 whitespace-pre-wrap;
+}
+
+.landing-section-divider {
+  @apply border-t border-divider;
 }

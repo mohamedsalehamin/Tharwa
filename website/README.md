@@ -40,6 +40,8 @@ cp .env.example .env
 | Path | Description |
 |------|-------------|
 | `/` | Landing page |
+| `/download/android` | Redirect to Google Play |
+| `/download/ios` | Redirect to App Store |
 | `/:slug` | CMS page (e.g. `/privacy`, `/contact`) |
 
 ## Admin

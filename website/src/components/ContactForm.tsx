@@ -2,6 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { submitContact } from '@/lib/api'
 import { useLocale } from '@/lib/locale'
 
+const inputClassName =
+  'rounded-lg border border-divider bg-white px-3 py-2 text-ink outline-none transition-colors focus:border-gold focus:ring-1 focus:ring-gold'
+
 export function ContactForm() {
   const { t } = useLocale()
   const [name, setName] = useState('')
@@ -35,7 +38,7 @@ export function ContactForm() {
 
   if (status === 'sent') {
     return (
-      <div className='rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-teal-900'>
+      <div className='rounded-xl border border-gold/30 bg-navy-light/5 px-4 py-3 text-ink'>
         {t('Thanks — we received your message.', 'شكراً — استلمنا رسالتك.')}
       </div>
     )
@@ -44,49 +47,49 @@ export function ContactForm() {
   return (
     <form onSubmit={(e) => void onSubmit(e)} className='grid max-w-xl gap-4'>
       <div className='grid gap-4 sm:grid-cols-2'>
-        <label className='grid gap-1 text-sm font-medium'>
+        <label className='grid gap-1 text-sm font-medium text-ink'>
           {t('Name', 'الاسم')}
           <input
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className='rounded-lg border border-slate-300 px-3 py-2'
+            className={inputClassName}
           />
         </label>
-        <label className='grid gap-1 text-sm font-medium'>
+        <label className='grid gap-1 text-sm font-medium text-ink'>
           {t('Email', 'البريد الإلكتروني')}
           <input
             required
             type='email'
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className='rounded-lg border border-slate-300 px-3 py-2'
+            className={inputClassName}
           />
         </label>
       </div>
-      <label className='grid gap-1 text-sm font-medium'>
+      <label className='grid gap-1 text-sm font-medium text-ink'>
         {t('Subject (optional)', 'الموضوع (اختياري)')}
         <input
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-          className='rounded-lg border border-slate-300 px-3 py-2'
+          className={inputClassName}
         />
       </label>
-      <label className='grid gap-1 text-sm font-medium'>
+      <label className='grid gap-1 text-sm font-medium text-ink'>
         {t('Message', 'الرسالة')}
         <textarea
           required
           rows={5}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          className='rounded-lg border border-slate-300 px-3 py-2'
+          className={inputClassName}
         />
       </label>
-      {error ? <p className='text-sm text-red-600'>{error}</p> : null}
+      {error ? <p className='text-sm text-crimson'>{error}</p> : null}
       <button
         type='submit'
         disabled={status === 'sending'}
-        className='w-fit rounded-lg bg-brand px-5 py-2.5 font-medium text-white hover:bg-brand-dark disabled:opacity-60'
+        className='w-fit rounded-lg bg-gold px-5 py-2.5 font-medium text-ink transition-colors hover:bg-gold-pressed disabled:opacity-60'
       >
         {status === 'sending' ? t('Sending…', 'جاري الإرسال…') : t('Send message', 'إرسال')}
       </button>

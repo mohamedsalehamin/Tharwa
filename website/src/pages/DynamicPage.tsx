@@ -25,7 +25,7 @@ export function DynamicPage() {
   if (error instanceof PageNotFoundError || !page) {
     return (
       <div className='mx-auto max-w-3xl px-4 py-16'>
-        <h1 className='mb-2 text-2xl font-bold'>{t('Page not found', 'الصفحة غير موجودة')}</h1>
+        <h1 className='mb-2 text-2xl font-bold text-ink'>{t('Page not found', 'الصفحة غير موجودة')}</h1>
         <p className='text-muted'>{t('This page may have been removed.', 'ربما تمت إزالة هذه الصفحة.')}</p>
       </div>
     )
@@ -35,14 +35,16 @@ export function DynamicPage() {
   const content = locale === 'ar' ? page.contentAr : page.contentEn
 
   return (
-    <article className='mx-auto max-w-3xl px-4 py-16'>
-      <h1 className='mb-6 text-3xl font-bold tracking-tight'>{title}</h1>
-      <div className='prose-page mb-10'>
-        {content.split('\n\n').map((paragraph) => (
-          <p key={paragraph.slice(0, 40)}>{paragraph}</p>
-        ))}
-      </div>
-      {page.kind === 'contact' ? <ContactForm /> : null}
-    </article>
+    <div className='border-t-3 border-gold bg-surface'>
+      <article className='mx-auto max-w-3xl px-4 py-16'>
+        <h1 className='mb-6 text-3xl font-bold tracking-tight text-ink'>{title}</h1>
+        <div className='prose-page mb-10'>
+          {content.split('\n\n').map((paragraph) => (
+            <p key={paragraph.slice(0, 40)}>{paragraph}</p>
+          ))}
+        </div>
+        {page.kind === 'contact' ? <ContactForm /> : null}
+      </article>
+    </div>
   )
 }

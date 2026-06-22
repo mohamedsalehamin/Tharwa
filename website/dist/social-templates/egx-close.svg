@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080" fill="none">
+  <defs>
+    <style type="text/css"><![CDATA[
+      @font-face {
+        font-family: 'Cairo';
+        src: url('fonts/Cairo_400Regular.ttf') format('truetype');
+        font-weight: 400;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Cairo';
+        src: url('fonts/Cairo_500Medium.ttf') format('truetype');
+        font-weight: 500;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Cairo';
+        src: url('fonts/Cairo_600SemiBold.ttf') format('truetype');
+        font-weight: 600;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Cairo';
+        src: url('fonts/Cairo_700Bold.ttf') format('truetype');
+        font-weight: 700;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Cairo';
+        src: url('fonts/Cairo_800ExtraBold.ttf') format('truetype');
+        font-weight: 800;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Cairo';
+        src: url('fonts/Cairo_900Black.ttf') format('truetype');
+        font-weight: 900;
+        font-style: normal;
+      }
+      text, tspan { font-family: 'Cairo', sans-serif; }
+    ]]></style>
+  </defs>
+
+  <rect width="1080" height="1080" fill="#14253f"/>
+  <rect x="0" y="0" width="1080" height="6" fill="#C9A227"/>
+  <image href="tharwa-logo.png" x="72" y="56" width="80" height="80" preserveAspectRatio="xMidYMid meet"/>
+  <text x="1008" y="96" text-anchor="end" font-family="Cairo" font-size="40" font-weight="800" fill="#FFFFFF">&#x645;&#x644;&#x62E;&#x635; &#x627;&#x644;&#x628;&#x648;&#x631;&#x635;&#x629;</text>
+  <text x="1008" y="128" text-anchor="end" font-family="Cairo" font-size="20" font-weight="700" fill="#C9A227">{{DATE_AR}} &#xB7; &#x628;&#x639;&#x62F; &#x627;&#x644;&#x625;&#x63A;&#x644;&#x627;&#x642;</text>
+  <g transform="translate(72, 170)" filter="url(#shadow)">
+<rect x="0" y="0" width="936" height="130" rx="20" fill="#112240" stroke="#C9A227" stroke-width="1.5"/>
+    <text x="32" y="52" font-family="Cairo" font-size="22" font-weight="700" fill="#8A94A6">EGX 30</text>
+    <text x="904" y="68" text-anchor="end" font-family="Cairo" font-size="48" font-weight="800" fill="#FFFFFF">{{EGX30_VALUE}}</text>
+    <text x="904" y="108" text-anchor="end" font-family="Cairo" font-size="26" font-weight="800" fill="{{EGX30_CHANGE_COLOR}}">{{EGX30_CHANGE}}</text>
+  </g>
+  <g transform="translate(72, 330)">
+    <rect x="0" y="0" width="448" height="40" rx="10" fill="#C9A227"/>
+    <text x="224" y="28" text-anchor="middle" font-family="Cairo" font-size="18" font-weight="800" fill="#0A1A2F">&#x623;&#x639;&#x644;&#x649; &#x627;&#x644;&#x631;&#x627;&#x628;&#x62D;&#x64A;&#x646;</text>
+    <g transform="translate(0, 56)">
+      <rect x="0" y="0" width="448" height="64" rx="12" fill="#112240"/>
+      <text x="24" y="42" font-family="Cairo" font-size="22" font-weight="800" fill="#FFFFFF">{{GAINER_1_SYMBOL}}</text>
+      <text x="424" y="42" text-anchor="end" font-family="Cairo" font-size="22" font-weight="800" fill="#00C853">{{GAINER_1_PCT}}</text>
+    </g>
+    <g transform="translate(0, 128)">
+      <rect x="0" y="0" width="448" height="64" rx="12" fill="#112240"/>
+      <text x="24" y="42" font-family="Cairo" font-size="22" font-weight="800" fill="#FFFFFF">{{GAINER_2_SYMBOL}}</text>
+      <text x="424" y="42" text-anchor="end" font-family="Cairo" font-size="22" font-weight="800" fill="#00C853">{{GAINER_2_PCT}}</text>
+    </g>
+    <g transform="translate(0, 200)">
+      <rect x="0" y="0" width="448" height="64" rx="12" fill="#112240"/>
+      <text x="24" y="42" font-family="Cairo" font-size="22" font-weight="800" fill="#FFFFFF">{{GAINER_3_SYMBOL}}</text>
+      <text x="424" y="42" text-anchor="end" font-family="Cairo" font-size="22" font-weight="800" fill="#00C853">{{GAINER_3_PCT}}</text>
+    </g>
+    <g transform="translate(0, 272)">
+      <rect x="0" y="0" width="448" height="64" rx="12" fill="#112240"/>
+      <text x="24" y="42" font-family="Cairo" font-size="22" font-weight="800" fill="#FFFFFF">{{GAINER_4_SYMBOL}}</text>
+      <text x="424" y="42" text-anchor="end" font-family="Cairo" font-size="22" font-weight="800" fill="#00C853">{{GAINER_4_PCT}}</text>
+    </g>
+    <g transform="translate(0, 344)">
+      <rect x="0" y="0" width="448" height="64" rx="12" fill="#112240"/>
+      <text x="24" y="42" font-family="Cairo" font-size="22" font-weight="800" fill="#FFFFFF">{{GAINER_5_SYMBOL}}</text>
+      <text x="424" y="42" text-anchor="end" font-family="Cairo" font-size="22" font-weight="800" fill="#00C853">{{GAINER_5_PCT}}</text>
+    </g>
+  </g>
+  <g transform="translate(560, 330)">
+    <rect x="0" y="0" width="448" height="40" rx="10" fill="#FF3B30"/>
+    <text x="224" y="28" text-anchor="middle" font-family="Cairo" font-size="18" font-weight="800" fill="#FFFFFF">&#x623;&#x639;&#x644;&#x649; &#x627;&#x644;&#x62E;&#x627;&#x633;&#x631;&#x64A;&#x646;</text>
+    <g transform="translate(0, 56)">
+      <rect x="0" y="0" width="448" height="64" rx="12" fill="#112240"/>
+      <text x="24" y="42" font-family="Cairo" font-size="22" font-weight="800" fill="#FFFFFF">{{LOSER_1_SYMBOL}}</text>
+      <text x="424" y="42" text-anchor="end" font-family="Cairo" font-size="22" font-weight="800" fill="#FF3B30">{{LOSER_1_PCT}}</text>
+    </g>
+    <g transform="translate(0, 128)">
+      <rect x="0" y="0" width="448" height="64" rx="12" fill="#112240"/>
+      <text x="24" y="42" font-family="Cairo" font-size="22" font-weight="800" fill="#FFFFFF">{{LOSER_2_SYMBOL}}</text>
+      <text x="424" y="42" text-anchor="end" font-family="Cairo" font-size="22" font-weight="800" fill="#FF3B30">{{LOSER_2_PCT}}</text>
+    </g>
+    <g transform="translate(0, 200)">
+      <rect x="0" y="0" width="448" height="64" rx="12" fill="#112240"/>
+      <text x="24" y="42" font-family="Cairo" font-size="22" font-weight="800" fill="#FFFFFF">{{LOSER_3_SYMBOL}}</text>
+      <text x="424" y="42" text-anchor="end" font-family="Cairo" font-size="22" font-weight="800" fill="#FF3B30">{{LOSER_3_PCT}}</text>
+    </g>
+    <g transform="translate(0, 272)">
+      <rect x="0" y="0" width="448" height="64" rx="12" fill="#112240"/>
+      <text x="24" y="42" font-family="Cairo" font-size="22" font-weight="800" fill="#FFFFFF">{{LOSER_4_SYMBOL}}</text>
+      <text x="424" y="42" text-anchor="end" font-family="Cairo" font-size="22" font-weight="800" fill="#FF3B30">{{LOSER_4_PCT}}</text>
+    </g>
+    <g transform="translate(0, 344)">
+      <rect x="0" y="0" width="448" height="64" rx="12" fill="#112240"/>
+      <text x="24" y="42" font-family="Cairo" font-size="22" font-weight="800" fill="#FFFFFF">{{LOSER_5_SYMBOL}}</text>
+      <text x="424" y="42" text-anchor="end" font-family="Cairo" font-size="22" font-weight="800" fill="#FF3B30">{{LOSER_5_PCT}}</text>
+    </g>
+  </g>
+  <g transform="translate(72, 750)">
+    <rect x="0" y="0" width="936" height="72" rx="16" fill="#112240"/>
+    <text x="32" y="46" font-family="Cairo" font-size="20" font-weight="700" fill="#8A94A6">USD/EGP</text>
+    <text x="904" y="46" text-anchor="end" font-family="Cairo" font-size="28" font-weight="800" fill="#FFFFFF">{{USD_EGP}}</text>
+    <text x="720" y="46" text-anchor="end" font-family="Cairo" font-size="18" font-weight="700" fill="{{USD_CHANGE_COLOR}}">{{USD_CHANGE}}</text>
+  </g>
+  <g transform="translate(72, 860)">
+    <rect x="0" y="0" width="936" height="88" rx="44" fill="#C9A227"/>
+    <text x="468" y="54" text-anchor="middle" font-family="Cairo" font-size="28" font-weight="800" fill="#0A1A2F">&#x62D;&#x645;&#x651;&#x644; &#x62B;&#x631;&#x648;&#x629; &#x2D; &#x62A;&#x627;&#x628;&#x639; &#x627;&#x644;&#x633;&#x648;&#x642;</text>
+  </g>
+</svg>

@@ -119,10 +119,10 @@ async function shouldAttemptPublish(args: {
   force: boolean;
   retryFailed: boolean;
 }): Promise<{ attempt: boolean; skipReason?: string }> {
+  if (args.force) return { attempt: true };
   if (await wasPublished(args)) {
     return { attempt: false, skipReason: 'already published today' };
   }
-  if (args.force) return { attempt: true };
   if (args.retryFailed) {
     const last = await latestRun(args);
     if (last?.status === 'failed') return { attempt: true };

@@ -38,6 +38,7 @@ import {
   exchangeTiktokOAuthCode,
   fetchTiktokCreatorInfo,
   fetchTiktokUserInfo,
+  getTiktokRedirectUri,
 } from '../../services/tiktok-oauth.js';
 import {
   clearTiktokSocialConfig,
@@ -45,7 +46,6 @@ import {
   getTiktokPostMode,
   getTiktokSocialConfig,
   isTiktokOAuthConfigured,
-  isTiktokSandboxClient,
   upsertTiktokSocialConfig,
   tiktokSocialPublicFromConfig,
 } from '../../services/tiktok-social-credentials.js';
@@ -107,6 +107,11 @@ const tiktokSaveBody = z.object({
 const OAUTH_STATE_PREFIX = 'social:meta-oauth:';
 const YOUTUBE_OAUTH_STATE_PREFIX = 'social:youtube-oauth:';
 const TIKTOK_OAUTH_STATE_PREFIX = 'social:tiktok-oauth:';
+
+type TiktokOAuthSession = {
+  adminId: string;
+  redirectUri: string;
+};
 
 type MetaOAuthSession = {
   pages: Awaited<ReturnType<typeof fetchMetaPages>>;
@@ -187,7 +192,7 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
           oauthAvailable: isTiktokOAuthConfigured(ctx().env),
           oauthScopes: getTiktokOAuthScopes(ctx().env),
           postMode: getTiktokPostMode(ctx().env),
-          sandboxClient: isTiktokSandboxClient(ctx().env),
+          redirectUri: getTiktokRedirectUri(ctx().env),
           account: tiktok ? tiktokSocialPublicFromConfig(tiktok) : null,
         },
         brand: {
@@ -394,7 +399,12 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
         throw new AppError('CONFIG', 'TikTok OAuth env vars are not configured', 503);
       }
       const state = randomUUID();
-      await ctx().redis.set(`${TIKTOK_OAUTH_STATE_PREFIX}${state}`, req.admin!.id, 'EX', 600);
+      const redirectUri = getTiktokRedirectUri(ctx().env);
+      if (!redirectUri) {
+        throw new AppError('CONFIG', 'TIKTOK_OAUTH_REDIRECT_URI is not configured', 503);
+      }
+      const session: TiktokOAuthSession = { adminId: req.admin!.id, redirectUri };
+      await ctx().redis.set(`${TIKTOK_OAUTH_STATE_PREFIX}${state}`, JSON.stringify(session), 'EX', 600);
       return reply.send({ url: buildTiktokOAuthUrl(ctx().env, state), state });
     } catch (e) {
       if (!reply.sent) sendError(reply, e);
@@ -425,15 +435,25 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
           .send(oauthResultHtml(adminOrigin, 'TikTok connection failed', 'Missing OAuth code or state.'));
       }
 
-      const adminId = await ctx().redis.get(`${TIKTOK_OAUTH_STATE_PREFIX}${query.data.state}`);
-      if (!adminId) {
+      const rawSession = await ctx().redis.get(`${TIKTOK_OAUTH_STATE_PREFIX}${query.data.state}`);
+      if (!rawSession) {
         return reply
           .type('text/html')
           .send(oauthResultHtml(adminOrigin, 'TikTok connection failed', 'Invalid or expired OAuth state.'));
       }
       await ctx().redis.del(`${TIKTOK_OAUTH_STATE_PREFIX}${query.data.state}`);
 
-      const tokens = await exchangeTiktokOAuthCode(ctx().env, query.data.code);
+      let session: TiktokOAuthSession;
+      try {
+        session = JSON.parse(rawSession) as TiktokOAuthSession;
+        if (!session?.adminId || !session?.redirectUri) throw new Error('invalid session');
+      } catch {
+        return reply
+          .type('text/html')
+          .send(oauthResultHtml(adminOrigin, 'TikTok connection failed', 'Invalid OAuth session payload.'));
+      }
+
+      const tokens = await exchangeTiktokOAuthCode(ctx().env, query.data.code, session.redirectUri);
       const account =
         getTiktokPostMode(ctx().env) === 'direct'
           ? await fetchTiktokCreatorInfo(tokens.accessToken).then((creator) => ({
@@ -442,14 +462,14 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
               displayName: creator.displayName,
             }))
           : await fetchTiktokUserInfo(tokens.accessToken);
-      await upsertTiktokSocialConfig(adminId, {
+      await upsertTiktokSocialConfig(session.adminId, {
         openId: account.openId,
         username: account.username,
         displayName: account.displayName,
         refreshToken: tokens.refreshToken,
         publishEnabled: true,
       });
-      await writeAdminAudit(adminId, 'admin.social.tiktok.connect', { username: account.username });
+      await writeAdminAudit(session.adminId, 'admin.social.tiktok.connect', { username: account.username });
 
       return reply.type('text/html').send(
         oauthResultHtml(

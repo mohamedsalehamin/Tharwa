@@ -1,17 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import {
   adminFetch,
   type MetaPageOption,
   type SocialStatusResponse,
 } from '@/lib/admin-api'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { toast } from 'sonner'
 
 type SocialIntegrationsSectionProps = {
   token: string | null
@@ -19,7 +25,11 @@ type SocialIntegrationsSectionProps = {
   onError?: (message: string | null) => void
 }
 
-export function SocialIntegrationsSection({ token, canManage, onError }: SocialIntegrationsSectionProps) {
+export function SocialIntegrationsSection({
+  token,
+  canManage,
+  onError,
+}: SocialIntegrationsSectionProps) {
   const queryClient = useQueryClient()
 
   const [saveLoading, setSaveLoading] = useState(false)
@@ -53,7 +63,8 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
   const { data: status } = useQuery({
     queryKey: ['admin', 'social-status', token],
     enabled: Boolean(token),
-    queryFn: () => adminFetch<SocialStatusResponse>('/admin/v1/social/status', token!),
+    queryFn: () =>
+      adminFetch<SocialStatusResponse>('/admin/v1/social/status', token!),
   })
 
   useEffect(() => {
@@ -126,11 +137,13 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
     try {
       const res = await adminFetch<{ pages: MetaPageOption[] }>(
         '/admin/v1/social/meta/oauth/pages',
-        token,
+        token
       )
       setPages(res.pages)
       if (res.pages.length === 0) {
-        toast.message('No pages yet — complete Facebook login, then refresh again')
+        toast.message(
+          'No pages yet — complete Facebook login, then refresh again'
+        )
         return
       }
       if (res.pages.length === 1) {
@@ -154,15 +167,23 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
     if (youtube === 'ok') params.delete('youtube')
     if (tiktok === 'ok') params.delete('tiktok')
     const qs = params.toString()
-    window.history.replaceState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`)
+    window.history.replaceState(
+      {},
+      '',
+      `${window.location.pathname}${qs ? `?${qs}` : ''}`
+    )
     if (oauth === 'ok') void loadOAuthPages()
     if (youtube === 'ok') {
       toast.success('YouTube channel connected')
-      void queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['admin', 'social-status'],
+      })
     }
     if (tiktok === 'ok') {
       toast.success('TikTok account connected')
-      void queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
+      void queryClient.invalidateQueries({
+        queryKey: ['admin', 'social-status'],
+      })
     }
   }, [token, canManage])
 
@@ -173,10 +194,12 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
     try {
       const { url } = await adminFetch<{ url: string }>(
         '/admin/v1/social/meta/oauth/start',
-        token,
+        token
       )
       window.open(url, '_blank', 'noopener,noreferrer')
-      toast.message('Complete Facebook login in the popup, then refresh pages below')
+      toast.message(
+        'Complete Facebook login in the popup, then refresh pages below'
+      )
       setTimeout(() => void loadOAuthPages(), 4000)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -200,13 +223,15 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
     if (!token || !canManage) return
     applyPage(page)
     if (!page.pageAccessToken || page.pageAccessToken.length < 20) {
-      onError?.('Facebook did not return a page token. Paste a Page access token manually, then Save.')
+      onError?.(
+        'Facebook did not return a page token. Paste a Page access token manually, then Save.'
+      )
       toast.error('Missing page token from Facebook — paste it manually')
       return
     }
     if (publishInstagram && !page.igUserId) {
       toast.warning(
-        'This Page has no linked Instagram account — Facebook only until you link @thrwa.co in Meta Business Suite',
+        'This Page has no linked Instagram account — Facebook only until you link @thrwa.co in Meta Business Suite'
       )
     }
     await saveMetaPayload(
@@ -216,7 +241,7 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
         pageAccessToken: page.pageAccessToken,
         igUserId: page.igUserId,
         igUsername: page.igUsername,
-      }),
+      })
     )
   }
 
@@ -243,12 +268,16 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
         toast.success(
           result.updated
             ? `Instagram linked: @${result.igUsername ?? result.igUserId}`
-            : `Found @${result.igUsername ?? result.igUserId} — click Save to store`,
+            : `Found @${result.igUsername ?? result.igUserId} — click Save to store`
         )
-        await queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
+        await queryClient.invalidateQueries({
+          queryKey: ['admin', 'social-status'],
+        })
       } else {
         const pageHint =
-          'pageId' in result && typeof result.pageId === 'string' ? ` (Page ${result.pageId})` : ''
+          'pageId' in result && typeof result.pageId === 'string'
+            ? ` (Page ${result.pageId})`
+            : ''
         const msg = `${result.hint ?? result.error ?? 'Could not detect Instagram account'}${pageHint}`
         onError?.(msg)
         toast.error(msg)
@@ -265,7 +294,8 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
   async function saveMetaPayload(payload: ReturnType<typeof buildMetaPayload>) {
     if (!token || !canManage) return
     if (!payload.pageId.trim() || !payload.pageName.trim()) {
-      const msg = 'Select a Facebook Page from OAuth first, or fill Page ID and name.'
+      const msg =
+        'Select a Facebook Page from OAuth first, or fill Page ID and name.'
       onError?.(msg)
       toast.error(msg)
       return
@@ -279,8 +309,12 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
         body: JSON.stringify(payload),
       })
       toast.success('Meta connection saved')
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'integrations'] })
+      await queryClient.invalidateQueries({
+        queryKey: ['admin', 'social-status'],
+      })
+      await queryClient.invalidateQueries({
+        queryKey: ['admin', 'integrations'],
+      })
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       onError?.(msg)
@@ -301,7 +335,9 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
       await adminFetch('/admin/v1/social/meta', token, { method: 'DELETE' })
       toast.success('Meta connection removed')
       setPageAccessToken('')
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
+      await queryClient.invalidateQueries({
+        queryKey: ['admin', 'social-status'],
+      })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e))
     } finally {
@@ -316,7 +352,7 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
     try {
       const { url } = await adminFetch<{ url: string }>(
         '/admin/v1/social/youtube/oauth/start',
-        token,
+        token
       )
       window.open(url, '_blank', 'noopener,noreferrer')
       toast.message('Complete Google login in the popup, then return here')
@@ -340,7 +376,9 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
         body: JSON.stringify({ publishEnabled: publishYoutube }),
       })
       toast.success('YouTube settings saved')
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
+      await queryClient.invalidateQueries({
+        queryKey: ['admin', 'social-status'],
+      })
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       onError?.(msg)
@@ -356,7 +394,9 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
     try {
       await adminFetch('/admin/v1/social/youtube', token, { method: 'DELETE' })
       toast.success('YouTube connection removed')
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
+      await queryClient.invalidateQueries({
+        queryKey: ['admin', 'social-status'],
+      })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e))
     } finally {
@@ -371,7 +411,7 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
     try {
       const { url } = await adminFetch<{ url: string }>(
         '/admin/v1/social/tiktok/oauth/start',
-        token,
+        token
       )
       window.open(url, '_blank', 'noopener,noreferrer')
       toast.message('Complete TikTok login in the popup, then return here')
@@ -395,7 +435,9 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
         body: JSON.stringify({ publishEnabled: publishTiktok }),
       })
       toast.success('TikTok settings saved')
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
+      await queryClient.invalidateQueries({
+        queryKey: ['admin', 'social-status'],
+      })
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       onError?.(msg)
@@ -411,7 +453,9 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
     try {
       await adminFetch('/admin/v1/social/tiktok', token, { method: 'DELETE' })
       toast.success('TikTok connection removed')
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
+      await queryClient.invalidateQueries({
+        queryKey: ['admin', 'social-status'],
+      })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e))
     } finally {
@@ -428,11 +472,14 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
             {status?.configured
               ? `Connected to ${status.meta?.pageName ?? 'Page'}`
               : 'Not connected — OAuth or paste a Page access token'}
-            {status?.oauthAvailable ? ' · OAuth available' : ' · OAuth env not set (manual token only)'}
+            {status?.oauthAvailable
+              ? ' · OAuth available'
+              : ' · OAuth env not set (manual token only)'}
             {status?.oauthScopes ? (
               <>
                 {' '}
-                · Scopes: <span className='font-mono text-xs'>{status.oauthScopes}</span>
+                · Scopes:{' '}
+                <span className='font-mono text-xs'>{status.oauthScopes}</span>
               </>
             ) : null}
           </CardDescription>
@@ -448,7 +495,11 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
               >
                 Connect with Facebook
               </Button>
-              <Button type='button' variant='outline' onClick={() => void loadOAuthPages()}>
+              <Button
+                type='button'
+                variant='outline'
+                onClick={() => void loadOAuthPages()}
+              >
                 Refresh pages
               </Button>
               <Button
@@ -471,12 +522,16 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
                     key={p.pageId}
                     type='button'
                     size='sm'
-                    variant={selectedPageId === p.pageId ? 'default' : 'secondary'}
+                    variant={
+                      selectedPageId === p.pageId ? 'default' : 'secondary'
+                    }
                     disabled={saveLoading}
                     onClick={() => void connectPage(p)}
                   >
                     {p.pageName}
-                    {p.igUsername ? ` · @${p.igUsername}` : ' · no Instagram linked'}
+                    {p.igUsername
+                      ? ` · @${p.igUsername}`
+                      : ' · no Instagram linked'}
                   </Button>
                 ))}
               </div>
@@ -487,13 +542,16 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
             <Alert>
               <AlertDescription>
                 Meta still cannot read @thrwa.co for Page ID{' '}
-                <span className='font-mono text-xs'>{pageId || '—'}</span>. Verify this matches the
-                Thrwa Page in Business Suite. Try: Disconnect → Connect with Facebook (approve all
-                permissions) → pick the Page showing <strong>@thrwa.co</strong> → Detect Instagram.
-                If detection keeps failing, paste the Instagram business account ID manually (from Meta
-                Graph API Explorer:{' '}
-                <span className='font-mono text-xs'>{'{page-id}/instagram_accounts'}</span>) and Save
-                with Publish to Instagram on.
+                <span className='font-mono text-xs'>{pageId || '—'}</span>.
+                Verify this matches the Thrwa Page in Business Suite. Try:
+                Disconnect → Connect with Facebook (approve all permissions) →
+                pick the Page showing <strong>@thrwa.co</strong> → Detect
+                Instagram. If detection keeps failing, paste the Instagram
+                business account ID manually (from Meta Graph API Explorer:{' '}
+                <span className='font-mono text-xs'>
+                  {'{page-id}/instagram_accounts'}
+                </span>
+                ) and Save with Publish to Instagram on.
               </AlertDescription>
             </Alert>
           ) : null}
@@ -555,11 +613,19 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
 
           <div className='flex flex-wrap gap-6'>
             <label className='flex items-center gap-2 text-sm'>
-              <Switch checked={publishFacebook} onCheckedChange={setPublishFacebook} disabled={!canManage} />
+              <Switch
+                checked={publishFacebook}
+                onCheckedChange={setPublishFacebook}
+                disabled={!canManage}
+              />
               Publish to Facebook
             </label>
             <label className='flex items-center gap-2 text-sm'>
-              <Switch checked={publishInstagram} onCheckedChange={setPublishInstagram} disabled={!canManage} />
+              <Switch
+                checked={publishInstagram}
+                onCheckedChange={setPublishInstagram}
+                disabled={!canManage}
+              />
               Publish to Instagram
             </label>
           </div>
@@ -568,7 +634,11 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
             <div>
               <p className='mb-2 text-sm font-medium'>Gold daily</p>
               <label className='mb-2 flex items-center gap-2 text-sm'>
-                <Switch checked={goldDailyEnabled} onCheckedChange={setGoldDailyEnabled} disabled={!canManage} />
+                <Switch
+                  checked={goldDailyEnabled}
+                  onCheckedChange={setGoldDailyEnabled}
+                  disabled={!canManage}
+                />
                 Enabled
               </label>
               <div className='flex gap-2'>
@@ -587,11 +657,19 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
             <div>
               <p className='mb-2 text-sm font-medium'>EGX close</p>
               <label className='mb-2 flex items-center gap-2 text-sm'>
-                <Switch checked={egxCloseEnabled} onCheckedChange={setEgxCloseEnabled} disabled={!canManage} />
+                <Switch
+                  checked={egxCloseEnabled}
+                  onCheckedChange={setEgxCloseEnabled}
+                  disabled={!canManage}
+                />
                 Enabled
               </label>
               <div className='flex gap-2'>
-                <Input value={egxCloseHour} onChange={(e) => setEgxCloseHour(e.target.value)} disabled={!canManage} />
+                <Input
+                  value={egxCloseHour}
+                  onChange={(e) => setEgxCloseHour(e.target.value)}
+                  disabled={!canManage}
+                />
                 <Input
                   value={egxCloseMinute}
                   onChange={(e) => setEgxCloseMinute(e.target.value)}
@@ -602,7 +680,11 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
             <div>
               <p className='mb-2 text-sm font-medium'>Gold alert</p>
               <label className='mb-2 flex items-center gap-2 text-sm'>
-                <Switch checked={goldAlertEnabled} onCheckedChange={setGoldAlertEnabled} disabled={!canManage} />
+                <Switch
+                  checked={goldAlertEnabled}
+                  onCheckedChange={setGoldAlertEnabled}
+                  disabled={!canManage}
+                />
                 Enabled
               </label>
               <Input
@@ -610,16 +692,27 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
                 onChange={(e) => setGoldAlertDropPct(e.target.value)}
                 disabled={!canManage}
               />
-              <p className='mt-1 text-xs text-muted-foreground'>Drop % from Cairo-day open</p>
+              <p className='mt-1 text-xs text-muted-foreground'>
+                Drop % from Cairo-day open
+              </p>
             </div>
           </div>
 
           {canManage ? (
             <div className='flex flex-wrap gap-2'>
-              <Button type='button' disabled={saveLoading} onClick={() => void saveMeta()}>
+              <Button
+                type='button'
+                disabled={saveLoading}
+                onClick={() => void saveMeta()}
+              >
                 Save connection
               </Button>
-              <Button type='button' variant='destructive' disabled={saveLoading} onClick={() => void disconnectMeta()}>
+              <Button
+                type='button'
+                variant='destructive'
+                disabled={saveLoading}
+                onClick={() => void disconnectMeta()}
+              >
                 Disconnect
               </Button>
             </div>
@@ -634,7 +727,9 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
             {status?.youtube?.configured
               ? `Connected to ${status.youtube.channel?.channelTitle ?? 'channel'} — daily Shorts use OAuth refresh token`
               : 'Not connected — link the Google account that owns the Thrwa channel'}
-            {status?.youtube?.oauthAvailable ? ' · OAuth available' : ' · YouTube OAuth env not set'}
+            {status?.youtube?.oauthAvailable
+              ? ' · OAuth available'
+              : ' · YouTube OAuth env not set'}
           </CardDescription>
         </CardHeader>
         <CardContent className='grid gap-4'>
@@ -643,7 +738,9 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
               <Button
                 type='button'
                 variant='outline'
-                disabled={youtubeOauthLoading || !status?.youtube?.oauthAvailable}
+                disabled={
+                  youtubeOauthLoading || !status?.youtube?.oauthAvailable
+                }
                 onClick={() => void startYoutubeOAuth()}
               >
                 Connect with Google
@@ -658,7 +755,11 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
                     />
                     Publish YouTube Shorts
                   </label>
-                  <Button type='button' disabled={youtubeSaveLoading} onClick={() => void saveYoutubeSettings()}>
+                  <Button
+                    type='button'
+                    disabled={youtubeSaveLoading}
+                    onClick={() => void saveYoutubeSettings()}
+                  >
                     Save YouTube settings
                   </Button>
                   <Button
@@ -675,7 +776,10 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
           ) : null}
           {status?.youtube?.channel ? (
             <p className='text-xs text-muted-foreground'>
-              Channel ID: <span className='font-mono'>{status.youtube.channel.channelId}</span>
+              Channel ID:{' '}
+              <span className='font-mono'>
+                {status.youtube.channel.channelId}
+              </span>
             </p>
           ) : null}
         </CardContent>
@@ -688,18 +792,34 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
             {status?.tiktok?.configured
               ? `Connected to @${status.tiktok.account?.username ?? 'account'} — daily videos use OAuth refresh token`
               : 'Not connected — link the TikTok account for @thrwa.co'}
-            {status?.tiktok?.oauthAvailable ? ' · OAuth available' : ' · TikTok OAuth env not set'}
+            {status?.tiktok?.oauthAvailable
+              ? ' · OAuth available'
+              : ' · TikTok OAuth env not set'}
             {status?.tiktok?.oauthScopes ? (
               <>
                 {' '}
-                · Scopes: <span className='font-mono text-xs'>{status.tiktok.oauthScopes}</span>
+                · Scopes:{' '}
+                <span className='font-mono text-xs'>
+                  {status.tiktok.oauthScopes}
+                </span>
               </>
             ) : null}
             {status?.tiktok?.postMode ? (
               <>
                 {' '}
-                · Mode: <span className='font-mono text-xs'>{status.tiktok.postMode}</span>
-                {status.tiktok.sandboxClient ? ' (sandbox)' : ''}
+                · Mode:{' '}
+                <span className='font-mono text-xs'>
+                  {status.tiktok.postMode}
+                </span>
+              </>
+            ) : null}
+            {status?.tiktok?.redirectUri ? (
+              <>
+                {' '}
+                · Redirect:{' '}
+                <span className='font-mono text-xs'>
+                  {status.tiktok.redirectUri}
+                </span>
               </>
             ) : null}
           </CardDescription>
@@ -725,7 +845,11 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
                     />
                     Publish TikTok videos
                   </label>
-                  <Button type='button' disabled={tiktokSaveLoading} onClick={() => void saveTiktokSettings()}>
+                  <Button
+                    type='button'
+                    disabled={tiktokSaveLoading}
+                    onClick={() => void saveTiktokSettings()}
+                  >
                     Save TikTok settings
                   </Button>
                   <Button
@@ -742,28 +866,24 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
           ) : null}
           {status?.tiktok?.account ? (
             <p className='text-xs text-muted-foreground'>
-              Open ID: <span className='font-mono'>{status.tiktok.account.openId}</span>
+              Open ID:{' '}
+              <span className='font-mono'>{status.tiktok.account.openId}</span>
             </p>
           ) : null}
           {status?.tiktok?.oauthAvailable && !status?.tiktok?.configured ? (
-            <Alert variant={status.tiktok.sandboxClient ? 'default' : 'destructive'}>
+            <Alert>
               <AlertDescription>
-                {status.tiktok.sandboxClient ? (
-                  <>
-                    Sandbox client detected — OAuth uses{' '}
-                    <span className='font-mono text-xs'>user.info.basic,video.upload</span> and inbox
-                    draft mode. Add your TikTok account under Sandbox → Target Users, click{' '}
-                    <strong>Apply changes</strong> in Developer Portal, then connect here.
-                  </>
-                ) : (
-                  <>
-                    For auto-post, enable Direct Post in Developer Portal, add{' '}
-                    <span className='font-mono text-xs'>video.publish</span> scope, and use production
-                    credentials. For draft/inbox uploads use{' '}
-                    <span className='font-mono text-xs'>TIKTOK_POST_MODE=draft</span> with{' '}
-                    <span className='font-mono text-xs'>video.upload</span>.
-                  </>
-                )}
+                Sandbox: use Sandbox credentials in API env, add your TikTok
+                account under Sandbox → Target Users, then connect here. With{' '}
+                <span className='font-mono text-xs'>draft</span> mode, videos go
+                to TikTok inbox for manual publish. For auto-post like YouTube,
+                enable Direct Post in Developer Portal, add{' '}
+                <span className='font-mono text-xs'>video.publish</span> scope,
+                and set{' '}
+                <span className='font-mono text-xs'>
+                  TIKTOK_POST_MODE=direct
+                </span>{' '}
+                on the API.
               </AlertDescription>
             </Alert>
           ) : null}

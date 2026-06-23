@@ -14,6 +14,7 @@ type TiktokTokenResponse = {
   token_type?: string;
   error?: string;
   error_description?: string;
+  log_id?: string;
 };
 
 type TiktokApiEnvelope<T> = {
@@ -30,6 +31,44 @@ export type TiktokCreatorInfo = {
   stitchDisabled: boolean;
 };
 
+function normalizeRedirectUri(uri: string): string {
+  const trimmed = uri.trim();
+  try {
+    const url = new URL(trimmed);
+    if (url.pathname !== '/' && url.pathname.endsWith('/')) {
+      url.pathname = url.pathname.replace(/\/+$/, '');
+    }
+    return url.toString();
+  } catch {
+    return trimmed;
+  }
+}
+
+function normalizeOAuthCode(code: string): string {
+  try {
+    return decodeURIComponent(code.trim());
+  } catch {
+    return code.trim();
+  }
+}
+
+function tiktokTokenError(json: TiktokTokenResponse, fallback: string): string {
+  const message = json.error_description ?? json.error ?? fallback;
+  return json.log_id ? `${message} (log_id: ${json.log_id})` : message;
+}
+
+async function postTiktokTokenForm(body: URLSearchParams): Promise<TiktokTokenResponse> {
+  const res = await fetch(TIKTOK_TOKEN, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Cache-Control': 'no-cache',
+    },
+    body: body.toString(),
+  });
+  return (await res.json()) as TiktokTokenResponse;
+}
+
 function oauthClient(env: Env): { clientKey: string; clientSecret: string; redirectUri: string } {
   const clientKey = env.TIKTOK_OAUTH_CLIENT_KEY?.trim();
   const clientSecret = env.TIKTOK_OAUTH_CLIENT_SECRET?.trim();
@@ -37,7 +76,12 @@ function oauthClient(env: Env): { clientKey: string; clientSecret: string; redir
   if (!clientKey || !clientSecret || !redirectUri) {
     throw new Error('TikTok OAuth env vars are not configured');
   }
-  return { clientKey, clientSecret, redirectUri };
+  return { clientKey, clientSecret, redirectUri: normalizeRedirectUri(redirectUri) };
+}
+
+export function getTiktokRedirectUri(env: Env): string | null {
+  const redirectUri = env.TIKTOK_OAUTH_REDIRECT_URI?.trim();
+  return redirectUri ? normalizeRedirectUri(redirectUri) : null;
 }
 
 export function buildTiktokOAuthUrl(env: Env, state: string): string {
@@ -54,21 +98,29 @@ export function buildTiktokOAuthUrl(env: Env, state: string): string {
 export async function exchangeTiktokOAuthCode(
   env: Env,
   code: string,
+  redirectUriOverride?: string,
 ): Promise<{ refreshToken: string; accessToken: string; openId: string }> {
   const { clientKey, clientSecret, redirectUri } = oauthClient(env);
+  const redirectUriForExchange = redirectUriOverride
+    ? normalizeRedirectUri(redirectUriOverride)
+    : redirectUri;
   const body = new URLSearchParams({
     client_key: clientKey,
     client_secret: clientSecret,
-    code,
+    code: normalizeOAuthCode(code),
     grant_type: 'authorization_code',
-    redirect_uri: redirectUri,
+    redirect_uri: redirectUriForExchange,
   });
-  const res = await fetch(TIKTOK_TOKEN, { method: 'POST', body });
-  const json = (await res.json()) as TiktokTokenResponse;
-  if (!res.ok || json.error) {
-    throw new Error(json.error_description ?? json.error ?? 'TikTok OAuth token exchange failed');
+  const json = await postTiktokTokenForm(body);
+  if (json.error || !json.access_token) {
+    throw new Error(
+      tiktokTokenError(
+        json,
+        `TikTok OAuth token exchange failed — verify redirect URI matches Portal exactly: ${redirectUriForExchange}`,
+      ),
+    );
   }
-  if (!json.refresh_token || !json.access_token || !json.open_id) {
+  if (!json.refresh_token || !json.open_id) {
     throw new Error('TikTok did not return required OAuth tokens');
   }
   return {
@@ -89,13 +141,9 @@ export async function refreshTiktokAccessToken(
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
   });
-  const res = await fetch(TIKTOK_TOKEN, { method: 'POST', body });
-  const json = (await res.json()) as TiktokTokenResponse;
-  if (!res.ok || json.error) {
-    throw new Error(json.error_description ?? json.error ?? 'TikTok token refresh failed');
-  }
-  if (!json.access_token) {
-    throw new Error('TikTok token refresh returned no access token');
+  const json = await postTiktokTokenForm(body);
+  if (json.error || !json.access_token) {
+    throw new Error(tiktokTokenError(json, 'TikTok token refresh failed'));
   }
   return {
     accessToken: json.access_token,

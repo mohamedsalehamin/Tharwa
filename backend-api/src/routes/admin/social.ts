@@ -90,10 +90,13 @@ const previewBody = z.object({
   template: templateSchema,
 });
 
+const socialChannelSchema = z.enum(['facebook', 'instagram', 'youtube', 'tiktok']);
+
 const publishBody = z.object({
   template: templateSchema,
   force: z.boolean().optional(),
   retryFailed: z.boolean().optional(),
+  channelsOnly: z.array(socialChannelSchema).min(1).optional(),
 });
 
 const youtubeSaveBody = z.object({
@@ -751,6 +754,7 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
         triggeredBy: admin.id,
         force: parsed.data.force,
         retryFailed: parsed.data.retryFailed,
+        channelsOnly: parsed.data.channelsOnly,
       });
 
       await writeAdminAudit(
@@ -760,6 +764,7 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
           template: parsed.data.template,
           force: parsed.data.force ?? false,
           retryFailed: parsed.data.retryFailed ?? false,
+          channelsOnly: parsed.data.channelsOnly ?? null,
         },
         clientIp(req),
       );

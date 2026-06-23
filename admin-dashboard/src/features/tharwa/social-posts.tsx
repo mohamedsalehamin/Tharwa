@@ -35,6 +35,37 @@ const TEMPLATES = [
 
 type TemplateId = (typeof TEMPLATES)[number]['id']
 
+type PublishTarget = 'all' | 'instagram' | 'facebook' | 'youtube' | 'tiktok'
+
+const GOLD_DAILY_TARGETS: { id: PublishTarget; label: string }[] = [
+  { id: 'all', label: 'All connected platforms' },
+  { id: 'instagram', label: 'Instagram only' },
+  { id: 'facebook', label: 'Facebook only' },
+  { id: 'youtube', label: 'YouTube only' },
+  { id: 'tiktok', label: 'TikTok only' },
+]
+
+const META_TARGETS: { id: PublishTarget; label: string }[] = [
+  { id: 'all', label: 'All connected platforms' },
+  { id: 'instagram', label: 'Instagram only' },
+  { id: 'facebook', label: 'Facebook only' },
+]
+
+function channelsOnlyForTarget(target: PublishTarget): string[] | undefined {
+  if (target === 'all') return undefined
+  return [target]
+}
+
+function targetReady(
+  target: PublishTarget,
+  ready: { meta: boolean; youtube: boolean; tiktok: boolean },
+): boolean {
+  if (target === 'all') return ready.meta || ready.youtube || ready.tiktok
+  if (target === 'instagram' || target === 'facebook') return ready.meta
+  if (target === 'youtube') return ready.youtube
+  return ready.tiktok
+}
+
 const TEMPLATE_HINTS: Record<TemplateId, string> = {
   gold_daily:
     'Generates voice (Gemini TTS) + 9:16 video, then publishes IG/FB Reels, alternating Stories, YouTube Shorts, and TikTok with platform-specific captions.',
@@ -87,6 +118,14 @@ function summarizePublishResult(result: SocialPublishResponse): {
   }
 }
 
+function formatExternalPostNote(channel: string, externalPostId: string | null): string {
+  if (!externalPostId) return ''
+  if (channel === 'tiktok' && externalPostId.startsWith('v_inbox_')) {
+    return ` · TikTok inbox — open the app to publish · ${externalPostId}`
+  }
+  return ` · ${externalPostId}`
+}
+
 export function SocialPostsPanel() {
   const token = useAuthStore((s) => s.auth.accessToken)
   const role = useAuthStore((s) => s.auth.user?.role)
@@ -94,6 +133,7 @@ export function SocialPostsPanel() {
   const queryClient = useQueryClient()
 
   const [template, setTemplate] = useState<TemplateId>('gold_daily')
+  const [publishTarget, setPublishTarget] = useState<PublishTarget>('all')
   const [preview, setPreview] = useState<SocialPreviewResult | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [publishLoading, setPublishLoading] = useState(false)
@@ -114,7 +154,11 @@ export function SocialPostsPanel() {
   const metaReady = Boolean(status?.configured)
   const youtubeReady = Boolean(status?.youtube?.configured)
   const tiktokReady = Boolean(status?.tiktok?.configured)
-  const canPublish = template === 'gold_daily' ? metaReady || youtubeReady || tiktokReady : metaReady
+  const platformTargets = template === 'gold_daily' ? GOLD_DAILY_TARGETS : META_TARGETS
+  const canPublish =
+    template === 'gold_daily'
+      ? targetReady(publishTarget, { meta: metaReady, youtube: youtubeReady, tiktok: tiktokReady })
+      : metaReady
   const failedTodayCount = (history?.items ?? []).filter(
     (row) => row.template === template && row.status === 'failed',
   ).length
@@ -153,6 +197,7 @@ export function SocialPostsPanel() {
             template,
             force: options.force ?? false,
             retryFailed: options.retryFailed ?? false,
+            channelsOnly: channelsOnlyForTarget(publishTarget),
           }),
         },
       )
@@ -227,12 +272,30 @@ export function SocialPostsPanel() {
             <div className='flex flex-wrap items-end gap-3'>
               <div className='grid gap-2'>
                 <Label>Template</Label>
-                <Select value={template} onValueChange={(v) => setTemplate(v as TemplateId)}>
+                <Select value={template} onValueChange={(v) => {
+                  setTemplate(v as TemplateId)
+                  setPublishTarget('all')
+                }}>
                   <SelectTrigger className='w-[220px]'>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {TEMPLATES.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className='grid gap-2'>
+                <Label>Publish to</Label>
+                <Select value={publishTarget} onValueChange={(v) => setPublishTarget(v as PublishTarget)}>
+                  <SelectTrigger className='w-[220px]'>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {platformTargets.map((t) => (
                       <SelectItem key={t.id} value={t.id}>
                         {t.label}
                       </SelectItem>
@@ -259,6 +322,7 @@ export function SocialPostsPanel() {
                     onClick={() => void runPublish({ force: true })}
                   >
                     Force publish
+                    {publishTarget !== 'all' ? ` (${platformTargets.find((t) => t.id === publishTarget)?.label ?? publishTarget})` : ''}
                   </Button>
                   {template === 'gold_daily' && failedTodayCount > 0 ? (
                     <Button
@@ -326,7 +390,7 @@ export function SocialPostsPanel() {
                   </div>
                   <p className='text-xs text-muted-foreground'>
                     {new Date(row.createdAt).toLocaleString()} · {row.cairoDateKey} · {row.triggeredBy}
-                    {row.externalPostId ? ` · ${row.externalPostId}` : ''}
+                    {row.externalPostId ? formatExternalPostNote(row.channel, row.externalPostId) : ''}
                   </p>
                   {row.errorMessage ? <p className='text-xs text-destructive'>{row.errorMessage}</p> : null}
                 </li>

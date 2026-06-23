@@ -91,6 +91,7 @@ export async function publishSocialPost(args: {
   triggeredBy: string;
   force?: boolean;
   retryFailed?: boolean;
+  channelsOnly?: SocialPostChannel[];
 }): Promise<SocialPublishResult | null> {
   if (args.template === 'gold_daily') {
     return publishGoldDailyVideoBundle(args);
@@ -129,8 +130,10 @@ export async function publishSocialPost(args: {
   const image = await writePublicSocialImage(args.env, png);
 
   const results: SocialPublishResult['results'] = [];
+  const wants = (channel: SocialPostChannel) =>
+    !args.channelsOnly?.length || args.channelsOnly.includes(channel);
 
-  if (config.publishFacebook) {
+  if (config.publishFacebook && wants('facebook')) {
     results.push(
       await publishToChannel({
         channel: 'facebook',
@@ -145,7 +148,7 @@ export async function publishSocialPost(args: {
     );
   }
 
-  if (config.publishInstagram) {
+  if (config.publishInstagram && wants('instagram')) {
     results.push(
       await publishToChannel({
         channel: 'instagram',
@@ -162,6 +165,10 @@ export async function publishSocialPost(args: {
 
   if (args.template === 'gold_alert' && results.some((r) => r.status === 'published')) {
     await markGoldAlertSent(args.redis, day);
+  }
+
+  if (results.length === 0) {
+    throw new Error('No platforms selected for publish');
   }
 
   return { template: args.template, results };

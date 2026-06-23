@@ -144,8 +144,12 @@ async function tryPublish(args: {
   day: string;
   force: boolean;
   retryFailed: boolean;
+  channelsOnly?: SocialPostChannel[];
   fn: () => Promise<string>;
-}): Promise<SocialPublishResult['results'][number]> {
+}): Promise<SocialPublishResult['results'][number] | null> {
+  if (args.channelsOnly?.length && !args.channelsOnly.includes(args.channel)) {
+    return null;
+  }
   const gate = await shouldAttemptPublish(args);
   if (!gate.attempt) {
     return recordRun({
@@ -172,13 +176,35 @@ export async function publishGoldDailyVideoBundle(args: {
   triggeredBy: string;
   force?: boolean;
   retryFailed?: boolean;
+  channelsOnly?: SocialPostChannel[];
 }): Promise<SocialPublishResult | null> {
   const content = await buildSocialContent(args.env, args.redis, args.log, 'gold_daily');
   if (!content?.platformCaptions || !content.voiceInput) return null;
 
+  const channelsOnly = args.channelsOnly;
+  const wants = (channel: SocialPostChannel) =>
+    !channelsOnly?.length || channelsOnly.includes(channel);
+
   const meta = await getMetaSocialConfig(args.env);
   const youtube = await getYoutubeSocialConfig(args.env);
   const tiktok = await getTiktokSocialConfig(args.env);
+
+  const needsMeta = wants('instagram') || wants('facebook');
+  const needsYoutube = wants('youtube');
+  const needsTiktok = wants('tiktok');
+
+  if (needsMeta && !meta) {
+    throw new Error('Meta is not configured but was selected for publish');
+  }
+  if (needsYoutube && !youtube?.publishEnabled) {
+    throw new Error('YouTube is not connected or publish is disabled');
+  }
+  if (needsTiktok && !tiktok?.publishEnabled) {
+    throw new Error('TikTok is not connected or publish is disabled');
+  }
+  if (!needsMeta && !needsYoutube && !needsTiktok) {
+    throw new Error('No platforms selected for publish');
+  }
   if (!meta && !youtube?.publishEnabled && !tiktok?.publishEnabled) {
     throw new Error('Configure Meta, YouTube, and/or TikTok social integration first');
   }
@@ -194,18 +220,20 @@ export async function publishGoldDailyVideoBundle(args: {
   const results: SocialPublishResult['results'] = [];
   const force = args.force ?? false;
   const retryFailed = args.retryFailed ?? false;
+  const publishArgs = { channelsOnly, force, retryFailed, triggeredBy: args.triggeredBy, day };
 
-  if (meta?.publishInstagram) {
-    results.push(
+  function pushResult(result: SocialPublishResult['results'][number] | null) {
+    if (result) results.push(result);
+  }
+
+  if (meta?.publishInstagram && wants('instagram')) {
+    pushResult(
       await tryPublish({
         template: 'gold_daily',
         channel: 'instagram',
         format: 'reel',
         caption: captions.igReel,
-        triggeredBy: args.triggeredBy,
-        day,
-        force,
-        retryFailed,
+        ...publishArgs,
         fn: () =>
           publishInstagramReel({
             config: meta,
@@ -216,16 +244,13 @@ export async function publishGoldDailyVideoBundle(args: {
     );
 
     const storyVideo = isStoryVideoDay(day);
-    results.push(
+    pushResult(
       await tryPublish({
         template: 'gold_daily',
         channel: 'instagram',
         format: 'story',
         caption: captions.storyOverlay,
-        triggeredBy: args.triggeredBy,
-        day,
-        force,
-        retryFailed,
+        ...publishArgs,
         fn: () =>
           storyVideo
             ? publishInstagramStoryVideo({ config: meta, videoUrl: media.videoPublicUrl })
@@ -234,17 +259,14 @@ export async function publishGoldDailyVideoBundle(args: {
     );
   }
 
-  if (meta?.publishFacebook) {
-    results.push(
+  if (meta?.publishFacebook && wants('facebook')) {
+    pushResult(
       await tryPublish({
         template: 'gold_daily',
         channel: 'facebook',
         format: 'reel',
         caption: captions.fbReel,
-        triggeredBy: args.triggeredBy,
-        day,
-        force,
-        retryFailed,
+        ...publishArgs,
         fn: () =>
           publishFacebookReel({
             config: meta,
@@ -255,16 +277,13 @@ export async function publishGoldDailyVideoBundle(args: {
     );
 
     const storyVideo = isStoryVideoDay(day);
-    results.push(
+    pushResult(
       await tryPublish({
         template: 'gold_daily',
         channel: 'facebook',
         format: 'story',
         caption: captions.storyOverlay,
-        triggeredBy: args.triggeredBy,
-        day,
-        force,
-        retryFailed,
+        ...publishArgs,
         fn: () =>
           storyVideo
             ? publishFacebookStoryVideo({ config: meta, videoUrl: media.videoPublicUrl })
@@ -273,17 +292,14 @@ export async function publishGoldDailyVideoBundle(args: {
     );
   }
 
-  if (youtube?.publishEnabled) {
-    results.push(
+  if (youtube?.publishEnabled && wants('youtube')) {
+    pushResult(
       await tryPublish({
         template: 'gold_daily',
         channel: 'youtube',
         format: 'reel',
         caption: captions.ytDescription,
-        triggeredBy: args.triggeredBy,
-        day,
-        force,
-        retryFailed,
+        ...publishArgs,
         fn: () =>
           uploadYoutubeShort({
             env: args.env,
@@ -296,17 +312,14 @@ export async function publishGoldDailyVideoBundle(args: {
     );
   }
 
-  if (tiktok?.publishEnabled) {
-    results.push(
+  if (tiktok?.publishEnabled && wants('tiktok')) {
+    pushResult(
       await tryPublish({
         template: 'gold_daily',
         channel: 'tiktok',
         format: 'reel',
         caption: captions.ttCaption,
-        triggeredBy: args.triggeredBy,
-        day,
-        force,
-        retryFailed,
+        ...publishArgs,
         fn: () =>
           uploadTiktokVideo({
             env: args.env,
@@ -318,6 +331,7 @@ export async function publishGoldDailyVideoBundle(args: {
     );
   }
 
+  if (results.length === 0) return null;
   return { template: 'gold_daily', results };
 }
 

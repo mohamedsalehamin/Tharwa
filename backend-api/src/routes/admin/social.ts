@@ -37,9 +37,12 @@ import {
   buildTiktokOAuthUrl,
   exchangeTiktokOAuthCode,
   fetchTiktokCreatorInfo,
+  fetchTiktokUserInfo,
 } from '../../services/tiktok-oauth.js';
 import {
   clearTiktokSocialConfig,
+  getTiktokOAuthScopes,
+  getTiktokPostMode,
   getTiktokSocialConfig,
   isTiktokOAuthConfigured,
   upsertTiktokSocialConfig,
@@ -181,6 +184,8 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
         tiktok: {
           configured: tiktok != null,
           oauthAvailable: isTiktokOAuthConfigured(ctx().env),
+          oauthScopes: getTiktokOAuthScopes(ctx().env),
+          postMode: getTiktokPostMode(ctx().env),
           account: tiktok ? tiktokSocialPublicFromConfig(tiktok) : null,
         },
         brand: {
@@ -427,21 +432,28 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
       await ctx().redis.del(`${TIKTOK_OAUTH_STATE_PREFIX}${query.data.state}`);
 
       const tokens = await exchangeTiktokOAuthCode(ctx().env, query.data.code);
-      const creator = await fetchTiktokCreatorInfo(tokens.accessToken);
+      const account =
+        getTiktokPostMode(ctx().env) === 'direct'
+          ? await fetchTiktokCreatorInfo(tokens.accessToken).then((creator) => ({
+              openId: tokens.openId,
+              username: creator.username,
+              displayName: creator.displayName,
+            }))
+          : await fetchTiktokUserInfo(tokens.accessToken);
       await upsertTiktokSocialConfig(adminId, {
-        openId: tokens.openId,
-        username: creator.username,
-        displayName: creator.displayName,
+        openId: account.openId,
+        username: account.username,
+        displayName: account.displayName,
         refreshToken: tokens.refreshToken,
         publishEnabled: true,
       });
-      await writeAdminAudit(adminId, 'admin.social.tiktok.connect', { username: creator.username });
+      await writeAdminAudit(adminId, 'admin.social.tiktok.connect', { username: account.username });
 
       return reply.type('text/html').send(
         oauthResultHtml(
           adminOrigin,
           'TikTok connected',
-          `Account @${creator.username} is ready for daily video posts.`,
+          `Account @${account.username} is ready for daily video posts.`,
           'tiktok=ok',
         ),
       );

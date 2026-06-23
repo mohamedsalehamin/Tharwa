@@ -210,6 +210,10 @@ const envSchema = z.object({
   TIKTOK_OAUTH_CLIENT_KEY: z.string().min(5).optional(),
   TIKTOK_OAUTH_CLIENT_SECRET: z.string().min(8).optional(),
   TIKTOK_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  /** Comma-separated OAuth scopes — must match scopes added in TikTok Developer Portal. */
+  TIKTOK_OAUTH_SCOPES: z.string().min(5).default('user.info.basic,video.upload'),
+  /** `draft` uploads to TikTok inbox (video.upload); `direct` posts to profile (video.publish). */
+  TIKTOK_POST_MODE: z.enum(['draft', 'direct']).default('draft'),
   /** Comma-separated Google OAuth client IDs (Web + iOS + Android) allowed as `aud` on ID tokens. */
   GOOGLE_OAUTH_CLIENT_IDS: z
     .string()

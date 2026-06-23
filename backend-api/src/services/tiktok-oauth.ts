@@ -1,5 +1,5 @@
 import type { Env } from '../config/env.js';
-import { TIKTOK_OAUTH_SCOPES } from './tiktok-social-credentials.js';
+import { getTiktokOAuthScopes } from './tiktok-social-credentials.js';
 
 const TIKTOK_AUTH = 'https://www.tiktok.com/v2/auth/authorize/';
 const TIKTOK_TOKEN = 'https://open.tiktokapis.com/v2/oauth/token/';
@@ -46,7 +46,7 @@ export function buildTiktokOAuthUrl(env: Env, state: string): string {
   url.searchParams.set('client_key', clientKey);
   url.searchParams.set('redirect_uri', redirectUri);
   url.searchParams.set('response_type', 'code');
-  url.searchParams.set('scope', TIKTOK_OAUTH_SCOPES);
+  url.searchParams.set('scope', getTiktokOAuthScopes(env));
   url.searchParams.set('state', state);
   return url.toString();
 }
@@ -101,6 +101,31 @@ export async function refreshTiktokAccessToken(
     accessToken: json.access_token,
     refreshToken: json.refresh_token ?? refreshToken,
   };
+}
+
+export async function fetchTiktokUserInfo(accessToken: string): Promise<{
+  openId: string;
+  username: string;
+  displayName: string;
+}> {
+  const url = new URL('https://open.tiktokapis.com/v2/user/info/');
+  url.searchParams.set('fields', 'open_id,display_name');
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const json = (await res.json()) as TiktokApiEnvelope<{
+    user?: { open_id?: string; display_name?: string };
+  }>;
+  if (!res.ok || json.error?.code !== 'ok') {
+    throw new Error(json.error?.message ?? 'TikTok user info query failed');
+  }
+  const user = json.data?.user;
+  if (!user?.open_id) {
+    throw new Error('TikTok user info returned no open_id');
+  }
+  const displayName = user.display_name?.trim() || user.open_id;
+  const username = displayName;
+  return { openId: user.open_id, username, displayName };
 }
 
 export async function fetchTiktokCreatorInfo(accessToken: string): Promise<TiktokCreatorInfo> {

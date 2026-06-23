@@ -689,6 +689,18 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
               ? `Connected to @${status.tiktok.account?.username ?? 'account'} — daily videos use OAuth refresh token`
               : 'Not connected — link the TikTok account for @thrwa.co'}
             {status?.tiktok?.oauthAvailable ? ' · OAuth available' : ' · TikTok OAuth env not set'}
+            {status?.tiktok?.oauthScopes ? (
+              <>
+                {' '}
+                · Scopes: <span className='font-mono text-xs'>{status.tiktok.oauthScopes}</span>
+              </>
+            ) : null}
+            {status?.tiktok?.postMode ? (
+              <>
+                {' '}
+                · Mode: <span className='font-mono text-xs'>{status.tiktok.postMode}</span>
+              </>
+            ) : null}
           </CardDescription>
         </CardHeader>
         <CardContent className='grid gap-4'>
@@ -735,17 +747,11 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
           {status?.tiktok?.oauthAvailable && !status?.tiktok?.configured ? (
             <Alert>
               <AlertDescription>
-                TikTok requires app approval for public posts. Until audit passes, videos may publish as
-                private/self-only. Register your app at{' '}
-                <a
-                  href='https://developers.tiktok.com'
-                  target='_blank'
-                  rel='noopener noreferrer'
-                  className='font-medium underline underline-offset-4'
-                >
-                  developers.tiktok.com
-                </a>{' '}
-                with Login Kit and Content Posting API (video.publish scope).
+                Sandbox: use Sandbox credentials in API env, add your TikTok account under Sandbox →
+                Target Users, then connect here. With <span className='font-mono text-xs'>draft</span>{' '}
+                mode, videos go to TikTok inbox for manual publish. For auto-post like YouTube, enable
+                Direct Post in Developer Portal, add <span className='font-mono text-xs'>video.publish</span>{' '}
+                scope, and set <span className='font-mono text-xs'>TIKTOK_POST_MODE=direct</span> on the API.
               </AlertDescription>
             </Alert>
           ) : null}

@@ -290,6 +290,8 @@ export type SocialStatusResponse = {
   tiktok: {
     configured: boolean
     oauthAvailable: boolean
+    oauthScopes?: string
+    postMode?: 'draft' | 'direct'
     account: TiktokSocialPublic | null
   }
   brand: {

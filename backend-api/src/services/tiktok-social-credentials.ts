@@ -87,4 +87,10 @@ export function isTiktokOAuthConfigured(env: Env): boolean {
   );
 }
 
-export const TIKTOK_OAUTH_SCOPES = ['user.info.basic', 'video.publish'].join(',');
+export function getTiktokOAuthScopes(env: Env): string {
+  return env.TIKTOK_OAUTH_SCOPES.trim();
+}
+
+export function getTiktokPostMode(env: Env): 'draft' | 'direct' {
+  return env.TIKTOK_POST_MODE;
+}

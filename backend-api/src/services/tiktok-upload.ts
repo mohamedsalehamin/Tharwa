@@ -1,11 +1,9 @@
 import type { Env } from '../config/env.js';
+import { getTiktokPostMode, updateTiktokSocialRefreshToken, type TiktokSocialConfig } from './tiktok-social-credentials.js';
 import { refreshTiktokAccessToken } from './tiktok-oauth.js';
-import {
-  updateTiktokSocialRefreshToken,
-  type TiktokSocialConfig,
-} from './tiktok-social-credentials.js';
 
-const TIKTOK_VIDEO_INIT = 'https://open.tiktokapis.com/v2/post/publish/video/init/';
+const TIKTOK_DIRECT_INIT = 'https://open.tiktokapis.com/v2/post/publish/video/init/';
+const TIKTOK_INBOX_INIT = 'https://open.tiktokapis.com/v2/post/publish/inbox/video/init/';
 const TIKTOK_STATUS_FETCH = 'https://open.tiktokapis.com/v2/post/publish/status/fetch/';
 
 type TiktokApiEnvelope<T> = {
@@ -51,16 +49,33 @@ async function pollPublishStatus(accessToken: string, publishId: string): Promis
       throw new Error(json.error?.message ?? `TikTok status fetch failed (${res.status})`);
     }
     const status = json.data?.status;
-    if (status === 'PUBLISH_COMPLETE') return publishId;
+    if (status === 'PUBLISH_COMPLETE' || status === 'SEND_TO_USER_INBOX') return publishId;
     if (status === 'FAILED') {
       throw new Error(json.data?.fail_reason ?? 'TikTok publish failed');
     }
     await new Promise((r) => setTimeout(r, 3000));
   }
-  throw new Error('TikTok publish timed out waiting for PUBLISH_COMPLETE');
+  throw new Error('TikTok publish timed out waiting for completion');
 }
 
-/** Upload MP4 as a TikTok video (direct post via Content Posting API). */
+async function uploadVideoBytes(uploadUrl: string, videoBytes: Buffer): Promise<void> {
+  const videoSize = videoBytes.length;
+  const uploadRes = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'video/mp4',
+      'Content-Length': String(videoSize),
+      'Content-Range': `bytes 0-${videoSize - 1}/${videoSize}`,
+    },
+    body: videoBytes,
+  });
+  if (!uploadRes.ok) {
+    const errText = await uploadRes.text().catch(() => '');
+    throw new Error(`TikTok video upload failed (${uploadRes.status})${errText ? `: ${errText}` : ''}`);
+  }
+}
+
+/** Upload MP4 to TikTok (direct post or inbox draft depending on TIKTOK_POST_MODE). */
 export async function uploadTiktokVideo(args: {
   env: Env;
   config: TiktokSocialConfig;
@@ -70,11 +85,45 @@ export async function uploadTiktokVideo(args: {
   const tokens = await refreshTiktokAccessToken(args.env, args.config.refreshToken);
   await updateTiktokSocialRefreshToken(tokens.refreshToken);
 
+  const videoSize = args.videoBytes.length;
+  const mode = getTiktokPostMode(args.env);
+
+  if (mode === 'draft') {
+    const initRes = await fetch(TIKTOK_INBOX_INIT, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${tokens.accessToken}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: JSON.stringify({
+        source_info: {
+          source: 'FILE_UPLOAD',
+          video_size: videoSize,
+          chunk_size: videoSize,
+          total_chunk_count: 1,
+        },
+      }),
+    });
+    const initJson = (await initRes.json()) as TiktokApiEnvelope<{
+      publish_id?: string;
+      upload_url?: string;
+    }>;
+    if (!initRes.ok || initJson.error?.code !== 'ok') {
+      throw new Error(initJson.error?.message ?? `TikTok inbox init failed (${initRes.status})`);
+    }
+    const publishId = initJson.data?.publish_id;
+    const uploadUrl = initJson.data?.upload_url;
+    if (!publishId || !uploadUrl) {
+      throw new Error('TikTok inbox init returned no publish_id or upload_url');
+    }
+    await uploadVideoBytes(uploadUrl, args.videoBytes);
+    return pollPublishStatus(tokens.accessToken, publishId);
+  }
+
   const privacyOptions = await queryCreatorPrivacyOptions(tokens.accessToken);
   const privacyLevel = pickPrivacyLevel(privacyOptions);
-  const videoSize = args.videoBytes.length;
 
-  const initRes = await fetch(TIKTOK_VIDEO_INIT, {
+  const initRes = await fetch(TIKTOK_DIRECT_INIT, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${tokens.accessToken}`,
@@ -112,19 +161,6 @@ export async function uploadTiktokVideo(args: {
     throw new Error('TikTok video init returned no publish_id or upload_url');
   }
 
-  const uploadRes = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'video/mp4',
-      'Content-Length': String(videoSize),
-      'Content-Range': `bytes 0-${videoSize - 1}/${videoSize}`,
-    },
-    body: args.videoBytes,
-  });
-  if (!uploadRes.ok) {
-    const errText = await uploadRes.text().catch(() => '');
-    throw new Error(`TikTok video upload failed (${uploadRes.status})${errText ? `: ${errText}` : ''}`);
-  }
-
+  await uploadVideoBytes(uploadUrl, args.videoBytes);
   return pollPublishStatus(tokens.accessToken, publishId);
 }

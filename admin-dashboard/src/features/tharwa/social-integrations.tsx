@@ -699,6 +699,7 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
               <>
                 {' '}
                 · Mode: <span className='font-mono text-xs'>{status.tiktok.postMode}</span>
+                {status.tiktok.sandboxClient ? ' (sandbox)' : ''}
               </>
             ) : null}
           </CardDescription>
@@ -745,13 +746,24 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
             </p>
           ) : null}
           {status?.tiktok?.oauthAvailable && !status?.tiktok?.configured ? (
-            <Alert>
+            <Alert variant={status.tiktok.sandboxClient ? 'default' : 'destructive'}>
               <AlertDescription>
-                Sandbox: use Sandbox credentials in API env, add your TikTok account under Sandbox →
-                Target Users, then connect here. With <span className='font-mono text-xs'>draft</span>{' '}
-                mode, videos go to TikTok inbox for manual publish. For auto-post like YouTube, enable
-                Direct Post in Developer Portal, add <span className='font-mono text-xs'>video.publish</span>{' '}
-                scope, and set <span className='font-mono text-xs'>TIKTOK_POST_MODE=direct</span> on the API.
+                {status.tiktok.sandboxClient ? (
+                  <>
+                    Sandbox client detected — OAuth uses{' '}
+                    <span className='font-mono text-xs'>user.info.basic,video.upload</span> and inbox
+                    draft mode. Add your TikTok account under Sandbox → Target Users, click{' '}
+                    <strong>Apply changes</strong> in Developer Portal, then connect here.
+                  </>
+                ) : (
+                  <>
+                    For auto-post, enable Direct Post in Developer Portal, add{' '}
+                    <span className='font-mono text-xs'>video.publish</span> scope, and use production
+                    credentials. For draft/inbox uploads use{' '}
+                    <span className='font-mono text-xs'>TIKTOK_POST_MODE=draft</span> with{' '}
+                    <span className='font-mono text-xs'>video.upload</span>.
+                  </>
+                )}
               </AlertDescription>
             </Alert>
           ) : null}

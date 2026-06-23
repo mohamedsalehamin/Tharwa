@@ -45,6 +45,7 @@ import {
   getTiktokPostMode,
   getTiktokSocialConfig,
   isTiktokOAuthConfigured,
+  isTiktokSandboxClient,
   upsertTiktokSocialConfig,
   tiktokSocialPublicFromConfig,
 } from '../../services/tiktok-social-credentials.js';
@@ -186,6 +187,7 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
           oauthAvailable: isTiktokOAuthConfigured(ctx().env),
           oauthScopes: getTiktokOAuthScopes(ctx().env),
           postMode: getTiktokPostMode(ctx().env),
+          sandboxClient: isTiktokSandboxClient(ctx().env),
           account: tiktok ? tiktokSocialPublicFromConfig(tiktok) : null,
         },
         brand: {

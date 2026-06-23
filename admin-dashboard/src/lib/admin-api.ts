@@ -292,6 +292,7 @@ export type SocialStatusResponse = {
     oauthAvailable: boolean
     oauthScopes?: string
     postMode?: 'draft' | 'direct'
+    sandboxClient?: boolean
     account: TiktokSocialPublic | null
   }
   brand: {

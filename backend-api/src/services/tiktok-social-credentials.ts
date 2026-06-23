@@ -87,10 +87,20 @@ export function isTiktokOAuthConfigured(env: Env): boolean {
   );
 }
 
-export function getTiktokOAuthScopes(env: Env): string {
-  return env.TIKTOK_OAUTH_SCOPES.trim();
+export function isTiktokSandboxClient(env: Env): boolean {
+  const key = env.TIKTOK_OAUTH_CLIENT_KEY?.trim() ?? '';
+  return key.startsWith('sbaw');
 }
 
+/** Effective post mode — Sandbox clients always use draft/inbox upload. */
 export function getTiktokPostMode(env: Env): 'draft' | 'direct' {
+  if (isTiktokSandboxClient(env)) return 'draft';
   return env.TIKTOK_POST_MODE;
+}
+
+/** OAuth scopes sent to TikTok — must match Developer Portal + post mode. */
+export function getTiktokOAuthScopes(env: Env): string {
+  return getTiktokPostMode(env) === 'draft'
+    ? 'user.info.basic,video.upload'
+    : 'user.info.basic,video.publish';
 }

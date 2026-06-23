@@ -1,36 +1,91 @@
 import type { Env } from '../config/env.js';
-import { getTiktokPostMode, missingTiktokScopes, updateTiktokSocialRefreshToken, type TiktokSocialConfig } from './tiktok-social-credentials.js';
+import {
+  getTiktokPostMode,
+  missingTiktokScopes,
+  updateTiktokSocialRefreshToken,
+  type TiktokSocialConfig,
+} from './tiktok-social-credentials.js';
 import { refreshTiktokAccessToken } from './tiktok-oauth.js';
 
 const TIKTOK_DIRECT_INIT = 'https://open.tiktokapis.com/v2/post/publish/video/init/';
 const TIKTOK_INBOX_INIT = 'https://open.tiktokapis.com/v2/post/publish/inbox/video/init/';
 const TIKTOK_STATUS_FETCH = 'https://open.tiktokapis.com/v2/post/publish/status/fetch/';
+const TIKTOK_CREATOR_INFO = 'https://open.tiktokapis.com/v2/post/publish/creator_info/query/';
 
 type TiktokApiEnvelope<T> = {
   data?: T;
   error?: { code?: string; message?: string; log_id?: string };
 };
 
-function pickPrivacyLevel(options: string[]): string {
+type TiktokCreatorPublishInfo = {
+  privacyLevelOptions: string[];
+  commentDisabled: boolean;
+  duetDisabled: boolean;
+  stitchDisabled: boolean;
+  maxVideoPostDurationSec: number;
+  canPostMore: boolean;
+};
+
+function pickPrivacyLevel(options: string[], preferred: string | undefined): string {
+  if (preferred && options.includes(preferred)) return preferred;
+  if (options.includes('SELF_ONLY')) return 'SELF_ONLY';
   if (options.includes('PUBLIC_TO_EVERYONE')) return 'PUBLIC_TO_EVERYONE';
   if (options.includes('MUTUAL_FOLLOW_FRIENDS')) return 'MUTUAL_FOLLOW_FRIENDS';
   if (options.includes('FOLLOWER_OF_CREATOR')) return 'FOLLOWER_OF_CREATOR';
   return options[0] ?? 'SELF_ONLY';
 }
 
-async function queryCreatorPrivacyOptions(accessToken: string): Promise<string[]> {
-  const res = await fetch('https://open.tiktokapis.com/v2/post/publish/creator_info/query/', {
+function tiktokInitErrorMessage(code: string | undefined, message: string, videoUrl?: string): string {
+  if (code === 'url_ownership_unverified') {
+    const host = videoUrl ? new URL(videoUrl).host : 'your video URL host';
+    return `${message} Verify ${host}/ in TikTok Developer Portal → Manage URL properties.`;
+  }
+  if (code === 'unaudited_client_can_only_post_to_private_accounts') {
+    return `${message} Set the TikTok account to private, use TIKTOK_DIRECT_PRIVACY=SELF_ONLY, then retry.`;
+  }
+  if (code === 'privacy_level_option_mismatch') {
+    return `${message} Reconnect TikTok or set TIKTOK_DIRECT_PRIVACY to a value from creator_info.`;
+  }
+  if (code === 'scope_not_authorized' || /scope/i.test(message)) {
+    return `${message} Reconnect TikTok in Admin → Integrations after granting video.publish.`;
+  }
+  return message;
+}
+
+function tiktokPublishFailReason(reason: string): string {
+  if (/integration guidelines|content-sharing-guidelines/i.test(reason)) {
+    return `${reason} Sandbox direct post requires SELF_ONLY privacy, a private TikTok account, PULL_FROM_URL from a verified domain, and no promotional watermarks in the video.`;
+  }
+  return reason;
+}
+
+async function queryCreatorPublishInfo(accessToken: string): Promise<TiktokCreatorPublishInfo> {
+  const res = await fetch(TIKTOK_CREATOR_INFO, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json; charset=UTF-8',
     },
   });
-  const json = (await res.json()) as TiktokApiEnvelope<{ privacy_level_options?: string[] }>;
+  const json = (await res.json()) as TiktokApiEnvelope<{
+    privacy_level_options?: string[];
+    comment_disabled?: boolean;
+    duet_disabled?: boolean;
+    stitch_disabled?: boolean;
+    max_video_post_duration_sec?: number;
+    can_post_more?: boolean;
+  }>;
   if (!res.ok || json.error?.code !== 'ok') {
     throw new Error(json.error?.message ?? 'TikTok creator_info query failed');
   }
-  return json.data?.privacy_level_options ?? ['SELF_ONLY'];
+  return {
+    privacyLevelOptions: json.data?.privacy_level_options ?? ['SELF_ONLY'],
+    commentDisabled: json.data?.comment_disabled ?? false,
+    duetDisabled: json.data?.duet_disabled ?? false,
+    stitchDisabled: json.data?.stitch_disabled ?? false,
+    maxVideoPostDurationSec: json.data?.max_video_post_duration_sec ?? 600,
+    canPostMore: json.data?.can_post_more ?? true,
+  };
 }
 
 async function pollPublishStatus(accessToken: string, publishId: string): Promise<string> {
@@ -51,7 +106,7 @@ async function pollPublishStatus(accessToken: string, publishId: string): Promis
     const status = json.data?.status;
     if (status === 'PUBLISH_COMPLETE' || status === 'SEND_TO_USER_INBOX') return publishId;
     if (status === 'FAILED') {
-      throw new Error(json.data?.fail_reason ?? 'TikTok publish failed');
+      throw new Error(tiktokPublishFailReason(json.data?.fail_reason ?? 'TikTok publish failed'));
     }
     await new Promise((r) => setTimeout(r, 3000));
   }
@@ -81,6 +136,9 @@ export async function uploadTiktokVideo(args: {
   config: TiktokSocialConfig;
   title: string;
   videoBytes: Buffer;
+  /** Public HTTPS URL for server-hosted video — required for direct post (PULL_FROM_URL). */
+  videoUrl?: string;
+  videoDurationSec?: number;
 }): Promise<string> {
   const tokens = await refreshTiktokAccessToken(args.env, args.config.refreshToken);
   await updateTiktokSocialRefreshToken(tokens.refreshToken);
@@ -126,8 +184,27 @@ export async function uploadTiktokVideo(args: {
     return pollPublishStatus(tokens.accessToken, publishId);
   }
 
-  const privacyOptions = await queryCreatorPrivacyOptions(tokens.accessToken);
-  const privacyLevel = pickPrivacyLevel(privacyOptions);
+  if (!args.videoUrl?.trim()) {
+    throw new Error(
+      'TikTok direct post requires a public video URL (PULL_FROM_URL). Set SOCIAL_PUBLIC_FILES_ORIGIN on the API.',
+    );
+  }
+
+  const creator = await queryCreatorPublishInfo(tokens.accessToken);
+  if (!creator.canPostMore) {
+    throw new Error('TikTok creator cannot post more right now — try again later.');
+  }
+  if (
+    args.videoDurationSec != null &&
+    args.videoDurationSec > creator.maxVideoPostDurationSec
+  ) {
+    throw new Error(
+      `Video is ${Math.ceil(args.videoDurationSec)}s but TikTok allows max ${creator.maxVideoPostDurationSec}s for this account.`,
+    );
+  }
+
+  const privacyLevel = pickPrivacyLevel(creator.privacyLevelOptions, args.env.TIKTOK_DIRECT_PRIVACY);
+  const usePullFromUrl = Boolean(args.videoUrl?.trim());
 
   const initRes = await fetch(TIKTOK_DIRECT_INIT, {
     method: 'POST',
@@ -139,18 +216,21 @@ export async function uploadTiktokVideo(args: {
       post_info: {
         title: args.title,
         privacy_level: privacyLevel,
-        disable_duet: false,
-        disable_stitch: false,
-        disable_comment: false,
+        disable_duet: true,
+        disable_stitch: true,
+        disable_comment: true,
         brand_content_toggle: false,
-        brand_organic_toggle: true,
+        brand_organic_toggle: false,
+        is_aigc: true,
       },
-      source_info: {
-        source: 'FILE_UPLOAD',
-        video_size: videoSize,
-        chunk_size: videoSize,
-        total_chunk_count: 1,
-      },
+      source_info: usePullFromUrl
+        ? { source: 'PULL_FROM_URL', video_url: args.videoUrl!.trim() }
+        : {
+            source: 'FILE_UPLOAD',
+            video_size: videoSize,
+            chunk_size: videoSize,
+            total_chunk_count: 1,
+          },
     }),
   });
 
@@ -158,21 +238,22 @@ export async function uploadTiktokVideo(args: {
     publish_id?: string;
     upload_url?: string;
   }>;
-    if (!initRes.ok || initJson.error?.code !== 'ok') {
-      const message = initJson.error?.message ?? `TikTok video init failed (${initRes.status})`;
-      if (initJson.error?.code === 'scope_not_authorized' || /scope/i.test(message)) {
-        throw new Error(
-          `${message} Reconnect TikTok in Admin → Integrations after granting video.publish in the Developer Portal.`,
-        );
-      }
-      throw new Error(message);
-    }
+  if (!initRes.ok || initJson.error?.code !== 'ok') {
+    const message = initJson.error?.message ?? `TikTok video init failed (${initRes.status})`;
+    throw new Error(tiktokInitErrorMessage(initJson.error?.code, message, args.videoUrl));
+  }
   const publishId = initJson.data?.publish_id;
   const uploadUrl = initJson.data?.upload_url;
-  if (!publishId || !uploadUrl) {
-    throw new Error('TikTok video init returned no publish_id or upload_url');
+  if (!publishId) {
+    throw new Error('TikTok video init returned no publish_id');
   }
 
-  await uploadVideoBytes(uploadUrl, args.videoBytes);
+  if (!usePullFromUrl) {
+    if (!uploadUrl) {
+      throw new Error('TikTok video init returned no upload_url');
+    }
+    await uploadVideoBytes(uploadUrl, args.videoBytes);
+  }
+
   return pollPublishStatus(tokens.accessToken, publishId);
 }

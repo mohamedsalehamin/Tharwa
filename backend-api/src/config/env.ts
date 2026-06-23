@@ -218,6 +218,10 @@ const envSchema = z.object({
   TIKTOK_OAUTH_SCOPES: z.string().min(5).default('user.info.basic,video.upload'),
   /** `draft` uploads to TikTok inbox (video.upload); `direct` posts to profile (video.publish). */
   TIKTOK_POST_MODE: z.enum(['draft', 'direct']).default('draft'),
+  /** Direct-post privacy; Sandbox/unaudited apps must use SELF_ONLY with a private account. */
+  TIKTOK_DIRECT_PRIVACY: z
+    .enum(['SELF_ONLY', 'PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR'])
+    .default('SELF_ONLY'),
   /** Comma-separated Google OAuth client IDs (Web + iOS + Android) allowed as `aud` on ID tokens. */
   GOOGLE_OAUTH_CLIENT_IDS: z
     .string()

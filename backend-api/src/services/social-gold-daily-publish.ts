@@ -326,6 +326,8 @@ export async function publishGoldDailyVideoBundle(args: {
             config: tiktok,
             title: captions.ttCaption,
             videoBytes: media.videoBytes,
+            videoUrl: media.videoPublicUrl,
+            videoDurationSec: media.seconds,
           }),
       }),
     );

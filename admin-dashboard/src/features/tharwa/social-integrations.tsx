@@ -887,10 +887,13 @@ export function SocialIntegrationsSection({
                   {(status.tiktok.account?.missingScopes ?? []).join(', ')}
                 </span>
                 . In TikTok Developer Portal add{' '}
-                <span className='font-mono text-xs'>video.publish</span> under Scopes, enable Direct
-                Post, set API env{' '}
-                <span className='font-mono text-xs'>TIKTOK_POST_MODE=direct</span>, then disconnect
-                and reconnect here.
+                <span className='font-mono text-xs'>video.publish</span> under Scopes,
+                enable Direct Post, verify your video URL domain (e.g.{' '}
+                <span className='font-mono text-xs'>api.thrwa.co</span>) under Manage URL
+                properties, set API env{' '}
+                <span className='font-mono text-xs'>TIKTOK_POST_MODE=direct</span> and{' '}
+                <span className='font-mono text-xs'>TIKTOK_DIRECT_PRIVACY=SELF_ONLY</span> for
+                Sandbox, then disconnect and reconnect here.
               </AlertDescription>
             </Alert>
           ) : null}
@@ -903,11 +906,12 @@ export function SocialIntegrationsSection({
                 to TikTok inbox for manual publish. For auto-post like YouTube,
                 enable Direct Post in Developer Portal, add{' '}
                 <span className='font-mono text-xs'>video.publish</span> scope,
-                and set{' '}
-                <span className='font-mono text-xs'>
-                  TIKTOK_POST_MODE=direct
-                </span>{' '}
-                on the API.
+                enable Direct Post, verify{' '}
+                <span className='font-mono text-xs'>api.thrwa.co</span> under Manage URL properties,
+                set{' '}
+                <span className='font-mono text-xs'>TIKTOK_POST_MODE=direct</span> and{' '}
+                <span className='font-mono text-xs'>TIKTOK_DIRECT_PRIVACY=SELF_ONLY</span> on the
+                API.
               </AlertDescription>
             </Alert>
           ) : null}

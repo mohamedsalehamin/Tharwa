@@ -868,7 +868,31 @@ export function SocialIntegrationsSection({
             <p className='text-xs text-muted-foreground'>
               Open ID:{' '}
               <span className='font-mono'>{status.tiktok.account.openId}</span>
+              {status.tiktok.account.grantedScopes ? (
+                <>
+                  {' '}
+                  · Granted:{' '}
+                  <span className='font-mono'>{status.tiktok.account.grantedScopes}</span>
+                </>
+              ) : null}
             </p>
+          ) : null}
+          {status?.tiktok?.configured && status.tiktok.account?.scopeReady === false ? (
+            <Alert variant='destructive'>
+              <AlertDescription>
+                Missing TikTok scope(s) for{' '}
+                <span className='font-mono text-xs'>{status.tiktok.postMode ?? 'current'}</span>{' '}
+                mode:{' '}
+                <span className='font-mono text-xs'>
+                  {(status.tiktok.account?.missingScopes ?? []).join(', ')}
+                </span>
+                . In TikTok Developer Portal add{' '}
+                <span className='font-mono text-xs'>video.publish</span> under Scopes, enable Direct
+                Post, set API env{' '}
+                <span className='font-mono text-xs'>TIKTOK_POST_MODE=direct</span>, then disconnect
+                and reconnect here.
+              </AlertDescription>
+            </Alert>
           ) : null}
           {status?.tiktok?.oauthAvailable && !status?.tiktok?.configured ? (
             <Alert>

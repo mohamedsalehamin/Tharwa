@@ -99,7 +99,7 @@ export async function exchangeTiktokOAuthCode(
   env: Env,
   code: string,
   redirectUriOverride?: string,
-): Promise<{ refreshToken: string; accessToken: string; openId: string }> {
+): Promise<{ refreshToken: string; accessToken: string; openId: string; scope: string }> {
   const { clientKey, clientSecret, redirectUri } = oauthClient(env);
   const redirectUriForExchange = redirectUriOverride
     ? normalizeRedirectUri(redirectUriOverride)
@@ -127,6 +127,7 @@ export async function exchangeTiktokOAuthCode(
     refreshToken: json.refresh_token,
     accessToken: json.access_token,
     openId: json.open_id,
+    scope: json.scope?.trim() ?? '',
   };
 }
 

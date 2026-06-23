@@ -275,6 +275,9 @@ export type TiktokSocialPublic = {
   displayName: string
   publishEnabled: boolean
   connected: boolean
+  grantedScopes?: string
+  scopeReady?: boolean
+  missingScopes?: string[]
 }
 
 export type SocialStatusResponse = {

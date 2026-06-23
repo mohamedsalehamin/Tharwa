@@ -46,6 +46,8 @@ import {
   getTiktokPostMode,
   getTiktokSocialConfig,
   isTiktokOAuthConfigured,
+  missingTiktokScopes,
+  tiktokScopeReconnectHint,
   upsertTiktokSocialConfig,
   tiktokSocialPublicFromConfig,
 } from '../../services/tiktok-social-credentials.js';
@@ -196,7 +198,7 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
           oauthScopes: getTiktokOAuthScopes(ctx().env),
           postMode: getTiktokPostMode(ctx().env),
           redirectUri: getTiktokRedirectUri(ctx().env),
-          account: tiktok ? tiktokSocialPublicFromConfig(tiktok) : null,
+          account: tiktok ? tiktokSocialPublicFromConfig(tiktok, ctx().env) : null,
         },
         brand: {
           website: 'https://thrwa.co',
@@ -457,21 +459,33 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const tokens = await exchangeTiktokOAuthCode(ctx().env, query.data.code, session.redirectUri);
+      const postMode = getTiktokPostMode(ctx().env);
+      const missing = missingTiktokScopes(tokens.scope, postMode);
+      if (missing.length > 0) {
+        throw new Error(
+          `TikTok did not grant required scope(s): ${missing.join(', ')}. ${tiktokScopeReconnectHint(ctx().env)}`,
+        );
+      }
       const account =
-        getTiktokPostMode(ctx().env) === 'direct'
+        postMode === 'direct'
           ? await fetchTiktokCreatorInfo(tokens.accessToken).then((creator) => ({
               openId: tokens.openId,
               username: creator.username,
               displayName: creator.displayName,
             }))
           : await fetchTiktokUserInfo(tokens.accessToken);
-      await upsertTiktokSocialConfig(session.adminId, {
-        openId: account.openId,
-        username: account.username,
-        displayName: account.displayName,
-        refreshToken: tokens.refreshToken,
-        publishEnabled: true,
-      });
+      await upsertTiktokSocialConfig(
+        session.adminId,
+        {
+          openId: account.openId,
+          username: account.username,
+          displayName: account.displayName,
+          refreshToken: tokens.refreshToken,
+          publishEnabled: true,
+          grantedScopes: tokens.scope,
+        },
+        ctx().env,
+      );
       await writeAdminAudit(session.adminId, 'admin.social.tiktok.connect', { username: account.username });
 
       return reply.type('text/html').send(
@@ -501,10 +515,14 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
       if (!existing) {
         throw new AppError('NOT_FOUND', 'TikTok is not connected', 404);
       }
-      const publicInfo = await upsertTiktokSocialConfig(admin.id, {
-        ...existing,
-        publishEnabled: parsed.data.publishEnabled,
-      });
+      const publicInfo = await upsertTiktokSocialConfig(
+        admin.id,
+        {
+          ...existing,
+          publishEnabled: parsed.data.publishEnabled,
+        },
+        ctx().env,
+      );
       await writeAdminAudit(
         admin.id,
         'admin.social.tiktok.update',

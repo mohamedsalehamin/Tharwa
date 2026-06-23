@@ -10,6 +10,8 @@ export const tiktokSocialConfigSchema = z.object({
   displayName: z.string().min(1),
   refreshToken: z.string().min(20),
   publishEnabled: z.boolean().default(true),
+  /** Comma-separated scopes granted at last OAuth connect (e.g. user.info.basic,video.publish). */
+  grantedScopes: z.string().optional(),
 });
 
 export type TiktokSocialConfig = z.infer<typeof tiktokSocialConfigSchema>;
@@ -20,15 +22,53 @@ export type TiktokSocialPublic = {
   displayName: string;
   publishEnabled: boolean;
   connected: boolean;
+  grantedScopes?: string;
+  scopeReady: boolean;
+  missingScopes: string[];
 };
 
-export function tiktokSocialPublicFromConfig(config: TiktokSocialConfig): TiktokSocialPublic {
+export function parseTiktokScopeList(scopes: string): string[] {
+  return scopes
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+export function requiredTiktokScopesForMode(mode: 'draft' | 'direct'): string[] {
+  return mode === 'direct'
+    ? ['user.info.basic', 'video.publish']
+    : ['user.info.basic', 'video.upload'];
+}
+
+export function missingTiktokScopes(
+  grantedScopes: string | undefined,
+  mode: 'draft' | 'direct',
+): string[] {
+  const granted = grantedScopes ? parseTiktokScopeList(grantedScopes) : [];
+  return requiredTiktokScopesForMode(mode).filter((scope) => !granted.includes(scope));
+}
+
+export function tiktokScopeReconnectHint(env: Env): string {
+  const mode = getTiktokPostMode(env);
+  const scopes = getTiktokOAuthScopes(env);
+  return `For ${mode} mode the API requests [${scopes}]. Add the same scopes under TikTok Developer Portal → your app → Scopes (and enable Direct Post for video.publish), then disconnect and reconnect here.`;
+}
+
+export function tiktokSocialPublicFromConfig(
+  config: TiktokSocialConfig,
+  env: Env,
+): TiktokSocialPublic {
+  const mode = getTiktokPostMode(env);
+  const missingScopes = missingTiktokScopes(config.grantedScopes, mode);
   return {
     openId: config.openId,
     username: config.username,
     displayName: config.displayName,
     publishEnabled: config.publishEnabled,
     connected: true,
+    grantedScopes: config.grantedScopes,
+    scopeReady: missingScopes.length === 0,
+    missingScopes,
   };
 }
 
@@ -44,6 +84,7 @@ export async function getTiktokSocialConfig(_env: Env): Promise<TiktokSocialConf
 export async function upsertTiktokSocialConfig(
   adminUserId: string,
   input: unknown,
+  env: Env,
 ): Promise<TiktokSocialPublic> {
   const parsed = tiktokSocialConfigSchema.parse(input);
   await prisma.platformIntegration.upsert({
@@ -59,7 +100,7 @@ export async function upsertTiktokSocialConfig(
       updatedByAdminId: adminUserId,
     },
   });
-  return tiktokSocialPublicFromConfig(parsed);
+  return tiktokSocialPublicFromConfig(parsed, env);
 }
 
 export async function updateTiktokSocialRefreshToken(refreshToken: string): Promise<void> {
@@ -88,7 +129,9 @@ export function isTiktokOAuthConfigured(env: Env): boolean {
 }
 
 export function getTiktokOAuthScopes(env: Env): string {
-  return env.TIKTOK_OAUTH_SCOPES.trim();
+  const configured = parseTiktokScopeList(env.TIKTOK_OAUTH_SCOPES);
+  const required = requiredTiktokScopesForMode(getTiktokPostMode(env));
+  return [...new Set([...configured, ...required])].join(',');
 }
 
 export function getTiktokPostMode(env: Env): 'draft' | 'direct' {

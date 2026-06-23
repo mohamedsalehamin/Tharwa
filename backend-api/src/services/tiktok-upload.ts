@@ -1,5 +1,5 @@
 import type { Env } from '../config/env.js';
-import { getTiktokPostMode, updateTiktokSocialRefreshToken, type TiktokSocialConfig } from './tiktok-social-credentials.js';
+import { getTiktokPostMode, missingTiktokScopes, updateTiktokSocialRefreshToken, type TiktokSocialConfig } from './tiktok-social-credentials.js';
 import { refreshTiktokAccessToken } from './tiktok-oauth.js';
 
 const TIKTOK_DIRECT_INIT = 'https://open.tiktokapis.com/v2/post/publish/video/init/';
@@ -87,6 +87,12 @@ export async function uploadTiktokVideo(args: {
 
   const videoSize = args.videoBytes.length;
   const mode = getTiktokPostMode(args.env);
+  const missingScopes = missingTiktokScopes(args.config.grantedScopes, mode);
+  if (missingScopes.length > 0) {
+    throw new Error(
+      `TikTok connection is missing scope(s): ${missingScopes.join(', ')}. Disconnect and reconnect in Admin → Integrations after adding video.publish in the Developer Portal.`,
+    );
+  }
 
   if (mode === 'draft') {
     const initRes = await fetch(TIKTOK_INBOX_INIT, {
@@ -152,9 +158,15 @@ export async function uploadTiktokVideo(args: {
     publish_id?: string;
     upload_url?: string;
   }>;
-  if (!initRes.ok || initJson.error?.code !== 'ok') {
-    throw new Error(initJson.error?.message ?? `TikTok video init failed (${initRes.status})`);
-  }
+    if (!initRes.ok || initJson.error?.code !== 'ok') {
+      const message = initJson.error?.message ?? `TikTok video init failed (${initRes.status})`;
+      if (initJson.error?.code === 'scope_not_authorized' || /scope/i.test(message)) {
+        throw new Error(
+          `${message} Reconnect TikTok in Admin → Integrations after granting video.publish in the Developer Portal.`,
+        );
+      }
+      throw new Error(message);
+    }
   const publishId = initJson.data?.publish_id;
   const uploadUrl = initJson.data?.upload_url;
   if (!publishId || !uploadUrl) {

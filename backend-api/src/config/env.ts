@@ -7,7 +7,9 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1),
   CORS_ORIGINS: z
     .string()
-    .default('http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:8081')
+    .default(
+      'http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:8081',
+    )
     .transform((s) =>
       s
         .split(',')
@@ -33,10 +35,7 @@ const envSchema = z.object({
   /** Optional JSON per base, e.g. `{"USD":"FX_IDC:USDEGP","AED":"SAXO:USDAED"}`. SAR/AED default to USD-cross unless overridden. */
   FX_TV_SYMBOLS: z.string().optional(),
   /** When `FX_PROVIDER=http`, full URL (default open.er-api USD latest). */
-  FX_HTTP_URL: z
-    .string()
-    .url()
-    .default('https://open.er-api.com/v6/latest/USD'),
+  FX_HTTP_URL: z.string().url().default('https://open.er-api.com/v6/latest/USD'),
   /** When false, curated equity endpoints omit live TradingView chart quotes. */
   EQUITIES_TV_ENABLED: z
     .string()
@@ -118,7 +117,12 @@ const envSchema = z.object({
     .default('true')
     .transform((s) => s.toLowerCase() !== 'false' && s !== '0'),
   /** How often to check whether today’s sync still needs to run. */
-  CORPORATE_CALENDAR_SYNC_CHECK_INTERVAL_SEC: z.coerce.number().int().min(300).max(86_400).default(3600),
+  CORPORATE_CALENDAR_SYNC_CHECK_INTERVAL_SEC: z.coerce
+    .number()
+    .int()
+    .min(300)
+    .max(86_400)
+    .default(3600),
   CORPORATE_CALENDAR_SYNC_MAX_RETRIES: z.coerce.number().int().min(1).max(10).default(3),
   CORPORATE_CALENDAR_SYNC_LEADER_TTL_SEC: z.coerce.number().int().min(60).max(3600).default(600),
   /** Daily market + watchlist push briefs (leader-elected, Cairo timezone). */
@@ -210,8 +214,8 @@ const envSchema = z.object({
   TIKTOK_OAUTH_CLIENT_KEY: z.string().min(5).optional(),
   TIKTOK_OAUTH_CLIENT_SECRET: z.string().min(8).optional(),
   TIKTOK_OAUTH_REDIRECT_URI: z.string().url().optional(),
-  /** Comma-separated OAuth scopes (optional override; effective scopes are derived from TIKTOK_POST_MODE). */
-  TIKTOK_OAUTH_SCOPES: z.string().min(5).optional(),
+  /** Comma-separated OAuth scopes — must match scopes added in TikTok Developer Portal. */
+  TIKTOK_OAUTH_SCOPES: z.string().min(5).default('user.info.basic,video.upload'),
   /** `draft` uploads to TikTok inbox (video.upload); `direct` posts to profile (video.publish). */
   TIKTOK_POST_MODE: z.enum(['draft', 'direct']).default('draft'),
   /** Comma-separated Google OAuth client IDs (Web + iOS + Android) allowed as `aud` on ID tokens. */

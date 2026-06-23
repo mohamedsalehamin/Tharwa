@@ -10,6 +10,7 @@ import {
   publishSocialPost,
 } from '../services/social-posts.js';
 import { getYoutubeSocialConfig } from '../services/youtube-social-credentials.js';
+import { getTiktokSocialConfig } from '../services/tiktok-social-credentials.js';
 import {
   buildSocialContent,
   wasGoldAlertSentToday,
@@ -25,7 +26,8 @@ export async function runSocialPostTick(ctx: AppCtx, log: Logger): Promise<void>
 
   const metaConfig = await getMetaSocialConfig(ctx.env);
   const youtubeConfig = await getYoutubeSocialConfig(ctx.env);
-  if (!metaConfig && !youtubeConfig) return;
+  const tiktokConfig = await getTiktokSocialConfig(ctx.env);
+  if (!metaConfig && !youtubeConfig && !tiktokConfig) return;
 
   const { hour, minute } = cairoHourMinute();
   const day = cairoDateKey();

@@ -48,6 +48,7 @@ export type PlatformCaptions = {
   fbReel: string;
   ytTitle: string;
   ytDescription: string;
+  ttCaption: string;
   storyOverlay: string;
 };
 
@@ -232,6 +233,14 @@ Android: ${vars.PLAY_STORE_URL}
 iOS: ${vars.APP_STORE_URL}
 
 #ثروة #اسعار_الذهب #الذهب_في_مصر #Shorts`,
+    ttCaption: `${vars.HEADLINE} — عيار 21: ${vars.CURRENT_PRICE} ج 🪙
+
+${vars.BODY_PARAGRAPH}
+
+حمّل تطبيق ثروة 👇
+${vars.PLAY_STORE_URL}
+
+#ثروة #thrwa #اسعار_الذهب #الذهب_في_مصر #fyp`,
     storyOverlay: shortHook,
   };
 }

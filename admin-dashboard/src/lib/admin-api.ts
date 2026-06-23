@@ -269,6 +269,14 @@ export type YoutubeSocialPublic = {
   connected: boolean
 }
 
+export type TiktokSocialPublic = {
+  openId: string
+  username: string
+  displayName: string
+  publishEnabled: boolean
+  connected: boolean
+}
+
 export type SocialStatusResponse = {
   configured: boolean
   oauthAvailable: boolean
@@ -278,6 +286,11 @@ export type SocialStatusResponse = {
     configured: boolean
     oauthAvailable: boolean
     channel: YoutubeSocialPublic | null
+  }
+  tiktok: {
+    configured: boolean
+    oauthAvailable: boolean
+    account: TiktokSocialPublic | null
   }
   brand: {
     website: string

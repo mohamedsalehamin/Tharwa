@@ -206,6 +206,10 @@ const envSchema = z.object({
   YOUTUBE_OAUTH_CLIENT_ID: z.string().min(5).optional(),
   YOUTUBE_OAUTH_CLIENT_SECRET: z.string().min(8).optional(),
   YOUTUBE_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  /** TikTok OAuth for automated video posts (Content Posting API). */
+  TIKTOK_OAUTH_CLIENT_KEY: z.string().min(5).optional(),
+  TIKTOK_OAUTH_CLIENT_SECRET: z.string().min(8).optional(),
+  TIKTOK_OAUTH_REDIRECT_URI: z.string().url().optional(),
   /** Comma-separated Google OAuth client IDs (Web + iOS + Android) allowed as `aud` on ID tokens. */
   GOOGLE_OAUTH_CLIENT_IDS: z
     .string()

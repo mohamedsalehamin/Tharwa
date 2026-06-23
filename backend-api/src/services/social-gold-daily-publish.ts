@@ -28,6 +28,8 @@ import {
 import type { SocialTemplateKey } from './social-templates.js';
 import { getYoutubeSocialConfig } from './youtube-social-credentials.js';
 import { uploadYoutubeShort } from './youtube-upload.js';
+import { getTiktokSocialConfig } from './tiktok-social-credentials.js';
+import { uploadTiktokVideo } from './tiktok-upload.js';
 
 export type SocialPublishResult = {
   template: SocialTemplateKey;
@@ -176,8 +178,9 @@ export async function publishGoldDailyVideoBundle(args: {
 
   const meta = await getMetaSocialConfig(args.env);
   const youtube = await getYoutubeSocialConfig(args.env);
-  if (!meta && !youtube?.publishEnabled) {
-    throw new Error('Configure Meta and/or YouTube social integration first');
+  const tiktok = await getTiktokSocialConfig(args.env);
+  if (!meta && !youtube?.publishEnabled && !tiktok?.publishEnabled) {
+    throw new Error('Configure Meta, YouTube, and/or TikTok social integration first');
   }
 
   const day = cairoDateKey();
@@ -287,6 +290,28 @@ export async function publishGoldDailyVideoBundle(args: {
             config: youtube,
             title: captions.ytTitle,
             description: captions.ytDescription,
+            videoBytes: media.videoBytes,
+          }),
+      }),
+    );
+  }
+
+  if (tiktok?.publishEnabled) {
+    results.push(
+      await tryPublish({
+        template: 'gold_daily',
+        channel: 'tiktok',
+        format: 'reel',
+        caption: captions.ttCaption,
+        triggeredBy: args.triggeredBy,
+        day,
+        force,
+        retryFailed,
+        fn: () =>
+          uploadTiktokVideo({
+            env: args.env,
+            config: tiktok,
+            title: captions.ttCaption,
             videoBytes: media.videoBytes,
           }),
       }),

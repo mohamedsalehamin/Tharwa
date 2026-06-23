@@ -26,6 +26,8 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
   const [oauthLoading, setOauthLoading] = useState(false)
   const [youtubeOauthLoading, setYoutubeOauthLoading] = useState(false)
   const [youtubeSaveLoading, setYoutubeSaveLoading] = useState(false)
+  const [tiktokOauthLoading, setTiktokOauthLoading] = useState(false)
+  const [tiktokSaveLoading, setTiktokSaveLoading] = useState(false)
   const [detectLoading, setDetectLoading] = useState(false)
   const [pages, setPages] = useState<MetaPageOption[]>([])
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null)
@@ -38,6 +40,7 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
   const [publishFacebook, setPublishFacebook] = useState(true)
   const [publishInstagram, setPublishInstagram] = useState(true)
   const [publishYoutube, setPublishYoutube] = useState(true)
+  const [publishTiktok, setPublishTiktok] = useState(true)
   const [goldDailyEnabled, setGoldDailyEnabled] = useState(true)
   const [goldDailyHour, setGoldDailyHour] = useState('10')
   const [goldDailyMinute, setGoldDailyMinute] = useState('0')
@@ -77,6 +80,11 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
     const youtube = status?.youtube?.channel
     if (youtube) setPublishYoutube(youtube.publishEnabled)
   }, [status?.youtube?.channel])
+
+  useEffect(() => {
+    const tiktok = status?.tiktok?.account
+    if (tiktok) setPublishTiktok(tiktok.publishEnabled)
+  }, [status?.tiktok?.account])
 
   function buildMetaPayload(overrides?: {
     pageId?: string
@@ -140,14 +148,20 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
     const params = new URLSearchParams(window.location.search)
     const oauth = params.get('oauth')
     const youtube = params.get('youtube')
-    if (oauth !== 'ok' && youtube !== 'ok') return
+    const tiktok = params.get('tiktok')
+    if (oauth !== 'ok' && youtube !== 'ok' && tiktok !== 'ok') return
     if (oauth === 'ok') params.delete('oauth')
     if (youtube === 'ok') params.delete('youtube')
+    if (tiktok === 'ok') params.delete('tiktok')
     const qs = params.toString()
     window.history.replaceState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`)
     if (oauth === 'ok') void loadOAuthPages()
     if (youtube === 'ok') {
       toast.success('YouTube channel connected')
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
+    }
+    if (tiktok === 'ok') {
+      toast.success('TikTok account connected')
       void queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
     }
   }, [token, canManage])
@@ -347,6 +361,61 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
       toast.error(e instanceof Error ? e.message : String(e))
     } finally {
       setYoutubeSaveLoading(false)
+    }
+  }
+
+  async function startTiktokOAuth() {
+    if (!token || !canManage) return
+    setTiktokOauthLoading(true)
+    onError?.(null)
+    try {
+      const { url } = await adminFetch<{ url: string }>(
+        '/admin/v1/social/tiktok/oauth/start',
+        token,
+      )
+      window.open(url, '_blank', 'noopener,noreferrer')
+      toast.message('Complete TikTok login in the popup, then return here')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      onError?.(msg)
+      toast.error(msg)
+    } finally {
+      setTiktokOauthLoading(false)
+    }
+  }
+
+  async function saveTiktokSettings() {
+    if (!token || !canManage || !status?.tiktok?.configured) return
+    setTiktokSaveLoading(true)
+    onError?.(null)
+    try {
+      await adminFetch('/admin/v1/social/tiktok', token, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publishEnabled: publishTiktok }),
+      })
+      toast.success('TikTok settings saved')
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      onError?.(msg)
+      toast.error(msg)
+    } finally {
+      setTiktokSaveLoading(false)
+    }
+  }
+
+  async function disconnectTiktok() {
+    if (!token || !canManage) return
+    setTiktokSaveLoading(true)
+    try {
+      await adminFetch('/admin/v1/social/tiktok', token, { method: 'DELETE' })
+      toast.success('TikTok connection removed')
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'social-status'] })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e))
+    } finally {
+      setTiktokSaveLoading(false)
     }
   }
 
@@ -608,6 +677,77 @@ export function SocialIntegrationsSection({ token, canManage, onError }: SocialI
             <p className='text-xs text-muted-foreground'>
               Channel ID: <span className='font-mono'>{status.youtube.channel.channelId}</span>
             </p>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card className='mb-6'>
+        <CardHeader>
+          <CardTitle>TikTok connection</CardTitle>
+          <CardDescription>
+            {status?.tiktok?.configured
+              ? `Connected to @${status.tiktok.account?.username ?? 'account'} — daily videos use OAuth refresh token`
+              : 'Not connected — link the TikTok account for @thrwa.co'}
+            {status?.tiktok?.oauthAvailable ? ' · OAuth available' : ' · TikTok OAuth env not set'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className='grid gap-4'>
+          {canManage ? (
+            <div className='flex flex-wrap gap-2'>
+              <Button
+                type='button'
+                variant='outline'
+                disabled={tiktokOauthLoading || !status?.tiktok?.oauthAvailable}
+                onClick={() => void startTiktokOAuth()}
+              >
+                Connect with TikTok
+              </Button>
+              {status?.tiktok?.configured ? (
+                <>
+                  <label className='flex items-center gap-2 text-sm'>
+                    <Switch
+                      checked={publishTiktok}
+                      onCheckedChange={setPublishTiktok}
+                      disabled={tiktokSaveLoading}
+                    />
+                    Publish TikTok videos
+                  </label>
+                  <Button type='button' disabled={tiktokSaveLoading} onClick={() => void saveTiktokSettings()}>
+                    Save TikTok settings
+                  </Button>
+                  <Button
+                    type='button'
+                    variant='destructive'
+                    disabled={tiktokSaveLoading}
+                    onClick={() => void disconnectTiktok()}
+                  >
+                    Disconnect TikTok
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+          {status?.tiktok?.account ? (
+            <p className='text-xs text-muted-foreground'>
+              Open ID: <span className='font-mono'>{status.tiktok.account.openId}</span>
+            </p>
+          ) : null}
+          {status?.tiktok?.oauthAvailable && !status?.tiktok?.configured ? (
+            <Alert>
+              <AlertDescription>
+                TikTok requires app approval for public posts. Until audit passes, videos may publish as
+                private/self-only. Register your app at{' '}
+                <a
+                  href='https://developers.tiktok.com'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='font-medium underline underline-offset-4'
+                >
+                  developers.tiktok.com
+                </a>{' '}
+                with Login Kit and Content Posting API (video.publish scope).
+              </AlertDescription>
+            </Alert>
           ) : null}
         </CardContent>
       </Card>

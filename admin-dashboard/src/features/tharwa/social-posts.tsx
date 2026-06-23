@@ -37,7 +37,7 @@ type TemplateId = (typeof TEMPLATES)[number]['id']
 
 const TEMPLATE_HINTS: Record<TemplateId, string> = {
   gold_daily:
-    'Generates voice (Gemini TTS) + 9:16 video, then publishes IG/FB Reels, alternating Stories, and YouTube Short with platform-specific captions.',
+    'Generates voice (Gemini TTS) + 9:16 video, then publishes IG/FB Reels, alternating Stories, YouTube Shorts, and TikTok with platform-specific captions.',
   gold_alert: 'Photo post to Meta when Cairo-day gold drop exceeds threshold.',
   egx_close: 'Photo post to Meta after EGX session close.',
 }
@@ -50,7 +50,9 @@ function formatChannelLabel(channel: string, format: string): string {
         ? 'Facebook'
         : channel === 'youtube'
           ? 'YouTube'
-          : channel
+          : channel === 'tiktok'
+            ? 'TikTok'
+            : channel
   const formatLabel =
     format === 'reel' ? 'Reel' : format === 'story' ? 'Story' : format === 'photo' ? 'Photo' : format
   return `${channelLabel} · ${formatLabel}`
@@ -111,7 +113,8 @@ export function SocialPostsPanel() {
 
   const metaReady = Boolean(status?.configured)
   const youtubeReady = Boolean(status?.youtube?.configured)
-  const canPublish = template === 'gold_daily' ? metaReady || youtubeReady : metaReady
+  const tiktokReady = Boolean(status?.tiktok?.configured)
+  const canPublish = template === 'gold_daily' ? metaReady || youtubeReady || tiktokReady : metaReady
   const failedTodayCount = (history?.items ?? []).filter(
     (row) => row.template === template && row.status === 'failed',
   ).length
@@ -191,7 +194,7 @@ export function SocialPostsPanel() {
           <Alert className='mb-4'>
             <AlertDescription>
               {template === 'gold_daily'
-                ? 'Connect Meta and/or YouTube in '
+                ? 'Connect Meta, YouTube, and/or TikTok in '
                 : 'Connect Meta in '}
               <Link to='/settings/integrations' className='font-medium underline underline-offset-4'>
                 Integrations
@@ -203,7 +206,8 @@ export function SocialPostsPanel() {
           <Alert className='mb-4'>
             <AlertDescription>
               Meta: {metaReady ? `connected (${status?.meta?.pageName})` : 'not connected'} · YouTube:{' '}
-              {youtubeReady ? `connected (${status?.youtube?.channel?.channelTitle})` : 'not connected'} —{' '}
+              {youtubeReady ? `connected (${status?.youtube?.channel?.channelTitle})` : 'not connected'} · TikTok:{' '}
+              {tiktokReady ? `connected (@${status?.tiktok?.account?.username})` : 'not connected'} —{' '}
               <Link to='/settings/integrations' className='font-medium underline underline-offset-4'>
                 Manage in Integrations
               </Link>

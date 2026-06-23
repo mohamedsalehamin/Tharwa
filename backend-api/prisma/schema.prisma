@@ -866,6 +866,7 @@ enum SocialPostChannel {
   facebook
   instagram
   youtube
+  tiktok
 }
 
 enum SocialPostFormat {
@@ -880,7 +881,7 @@ enum SocialPostStatus {
   skipped
 }
 
-/// Automated social post attempts (Facebook / Instagram / YouTube).
+/// Automated social post attempts (Facebook / Instagram / YouTube / TikTok).
 model SocialPostRun {
   id             String             @id @default(uuid())
   template       SocialPostTemplate

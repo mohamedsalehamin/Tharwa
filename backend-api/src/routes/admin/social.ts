@@ -34,6 +34,18 @@ import {
   youtubeSocialPublicFromConfig,
 } from '../../services/youtube-social-credentials.js';
 import {
+  buildTiktokOAuthUrl,
+  exchangeTiktokOAuthCode,
+  fetchTiktokCreatorInfo,
+} from '../../services/tiktok-oauth.js';
+import {
+  clearTiktokSocialConfig,
+  getTiktokSocialConfig,
+  isTiktokOAuthConfigured,
+  upsertTiktokSocialConfig,
+  tiktokSocialPublicFromConfig,
+} from '../../services/tiktok-social-credentials.js';
+import {
   listSocialPostRuns,
   previewSocialPost,
   publishSocialPost,
@@ -84,8 +96,13 @@ const youtubeSaveBody = z.object({
   publishEnabled: z.boolean(),
 });
 
+const tiktokSaveBody = z.object({
+  publishEnabled: z.boolean(),
+});
+
 const OAUTH_STATE_PREFIX = 'social:meta-oauth:';
 const YOUTUBE_OAUTH_STATE_PREFIX = 'social:youtube-oauth:';
+const TIKTOK_OAUTH_STATE_PREFIX = 'social:tiktok-oauth:';
 
 type MetaOAuthSession = {
   pages: Awaited<ReturnType<typeof fetchMetaPages>>;
@@ -150,6 +167,7 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
     try {
       const config = await getMetaSocialConfig(ctx().env);
       const youtube = await getYoutubeSocialConfig(ctx().env);
+      const tiktok = await getTiktokSocialConfig(ctx().env);
       return reply.send({
         configured: config != null,
         oauthAvailable: isMetaOAuthConfigured(ctx().env),
@@ -159,6 +177,11 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
           configured: youtube != null,
           oauthAvailable: isYoutubeOAuthConfigured(ctx().env),
           channel: youtube ? youtubeSocialPublicFromConfig(youtube) : null,
+        },
+        tiktok: {
+          configured: tiktok != null,
+          oauthAvailable: isTiktokOAuthConfigured(ctx().env),
+          account: tiktok ? tiktokSocialPublicFromConfig(tiktok) : null,
         },
         brand: {
           website: 'https://thrwa.co',
@@ -352,6 +375,116 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
       const admin = req.admin!;
       await clearYoutubeSocialConfig();
       await writeAdminAudit(admin.id, 'admin.social.youtube.clear', {}, clientIp(req));
+      return reply.send({ ok: true });
+    } catch (e) {
+      if (!reply.sent) sendError(reply, e);
+    }
+  });
+
+  app.get('/social/tiktok/oauth/start', { ...superadminGuard }, async (req, reply) => {
+    try {
+      if (!isTiktokOAuthConfigured(ctx().env)) {
+        throw new AppError('CONFIG', 'TikTok OAuth env vars are not configured', 503);
+      }
+      const state = randomUUID();
+      await ctx().redis.set(`${TIKTOK_OAUTH_STATE_PREFIX}${state}`, req.admin!.id, 'EX', 600);
+      return reply.send({ url: buildTiktokOAuthUrl(ctx().env, state), state });
+    } catch (e) {
+      if (!reply.sent) sendError(reply, e);
+    }
+  });
+
+  app.get('/social/tiktok/oauth/callback', async (req, reply) => {
+    const adminOrigin = ctx().env.ADMIN_PUBLIC_ORIGIN;
+    try {
+      const raw = req.query as Record<string, unknown>;
+      const oauthError = typeof raw.error === 'string' ? raw.error : null;
+      if (oauthError) {
+        const description =
+          typeof raw.error_description === 'string'
+            ? decodeURIComponent(raw.error_description.replace(/\+/g, ' '))
+            : oauthError;
+        return reply
+          .type('text/html')
+          .send(oauthResultHtml(adminOrigin, 'TikTok connection failed', `TikTok returned: ${description}`));
+      }
+
+      const query = z
+        .object({ code: z.string().min(1), state: z.string().min(1) })
+        .safeParse(req.query);
+      if (!query.success) {
+        return reply
+          .type('text/html')
+          .send(oauthResultHtml(adminOrigin, 'TikTok connection failed', 'Missing OAuth code or state.'));
+      }
+
+      const adminId = await ctx().redis.get(`${TIKTOK_OAUTH_STATE_PREFIX}${query.data.state}`);
+      if (!adminId) {
+        return reply
+          .type('text/html')
+          .send(oauthResultHtml(adminOrigin, 'TikTok connection failed', 'Invalid or expired OAuth state.'));
+      }
+      await ctx().redis.del(`${TIKTOK_OAUTH_STATE_PREFIX}${query.data.state}`);
+
+      const tokens = await exchangeTiktokOAuthCode(ctx().env, query.data.code);
+      const creator = await fetchTiktokCreatorInfo(tokens.accessToken);
+      await upsertTiktokSocialConfig(adminId, {
+        openId: tokens.openId,
+        username: creator.username,
+        displayName: creator.displayName,
+        refreshToken: tokens.refreshToken,
+        publishEnabled: true,
+      });
+      await writeAdminAudit(adminId, 'admin.social.tiktok.connect', { username: creator.username });
+
+      return reply.type('text/html').send(
+        oauthResultHtml(
+          adminOrigin,
+          'TikTok connected',
+          `Account @${creator.username} is ready for daily video posts.`,
+          'tiktok=ok',
+        ),
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (!reply.sent) {
+        return reply
+          .type('text/html')
+          .send(oauthResultHtml(adminOrigin, 'TikTok connection failed', message));
+      }
+    }
+  });
+
+  app.put('/social/tiktok', { ...superadminGuard }, async (req, reply) => {
+    try {
+      const admin = req.admin!;
+      const parsed = tiktokSaveBody.safeParse(req.body);
+      if (!parsed.success) throw new AppError('VALIDATION', zodMessage(parsed.error), 400);
+      const existing = await getTiktokSocialConfig(ctx().env);
+      if (!existing) {
+        throw new AppError('NOT_FOUND', 'TikTok is not connected', 404);
+      }
+      const publicInfo = await upsertTiktokSocialConfig(admin.id, {
+        ...existing,
+        publishEnabled: parsed.data.publishEnabled,
+      });
+      await writeAdminAudit(
+        admin.id,
+        'admin.social.tiktok.update',
+        { publishEnabled: parsed.data.publishEnabled },
+        clientIp(req),
+      );
+      return reply.send({ ok: true, account: publicInfo });
+    } catch (e) {
+      if (!reply.sent) sendError(reply, e);
+    }
+  });
+
+  app.delete('/social/tiktok', { ...superadminGuard }, async (req, reply) => {
+    try {
+      const admin = req.admin!;
+      await clearTiktokSocialConfig();
+      await writeAdminAudit(admin.id, 'admin.social.tiktok.clear', {}, clientIp(req));
       return reply.send({ ok: true });
     } catch (e) {
       if (!reply.sent) sendError(reply, e);

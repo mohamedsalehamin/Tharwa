@@ -103,3 +103,11 @@ export function fillTemplate(template: string, vars: Record<string, string>): st
   }
   return out;
 }
+
+/** Remove Thrwa logo/CTA overlays — required for TikTok direct post guidelines. */
+export function stripSvgForTiktokDirectPost(svg: string): string {
+  return svg
+    .replace(/<image[^>]*tharwa-logo\.png[^>]*\/?>\s*/gi, '')
+    .replace(/<!-- CTA -->[\s\S]*?<g transform="translate\(72, 880\)">[\s\S]*?<\/g>\s*/m, '')
+    .replace(/<text[^>]*>#&#x627;&#x633;&#x639;&#x627;&#x631;_[^<]*<\/text>\s*/m, '');
+}

@@ -39,6 +39,7 @@ export async function generateGoldDailyMedia(args: {
   env: Env;
   vars: Record<string, string>;
   voiceInput: GoldVoiceoverInput;
+  forTiktok?: boolean;
 }): Promise<GoldDailyMediaBundle> {
   await assertGoldDailyMediaEnv(args.env);
   const workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gold-daily-media-'));
@@ -56,6 +57,7 @@ export async function generateGoldDailyMedia(args: {
       outputDir: workDir,
       voicePath,
       minSeconds: Math.ceil(durationSec),
+      forTiktok: args.forTiktok,
     });
 
     const finalVideoPath = rendered.videoWithVoicePath ?? rendered.videoPath;

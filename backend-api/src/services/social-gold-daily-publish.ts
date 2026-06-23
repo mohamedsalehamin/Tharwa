@@ -9,7 +9,7 @@ import type {
 import type { Env } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { cairoDateKey } from './egx-trading-day.js';
-import { generateGoldDailyMedia } from './gold-daily-media.js';
+import { generateGoldDailyMedia, type GoldDailyMediaBundle } from './gold-daily-media.js';
 import { getMetaSocialConfig } from './meta-social-credentials.js';
 import {
   publishFacebookReel,
@@ -210,11 +210,33 @@ export async function publishGoldDailyVideoBundle(args: {
   }
 
   const day = cairoDateKey();
-  const media = await generateGoldDailyMedia({
-    env: args.env,
-    vars: content.vars,
-    voiceInput: content.voiceInput,
-  });
+  let media: GoldDailyMediaBundle;
+  let tiktokMedia: GoldDailyMediaBundle;
+  if (needsTiktok && !needsMeta && !needsYoutube) {
+    tiktokMedia = await generateGoldDailyMedia({
+      env: args.env,
+      vars: content.vars,
+      voiceInput: content.voiceInput,
+      forTiktok: true,
+    });
+    media = tiktokMedia;
+  } else {
+    media = await generateGoldDailyMedia({
+      env: args.env,
+      vars: content.vars,
+      voiceInput: content.voiceInput,
+      forTiktok: false,
+    });
+    tiktokMedia = media;
+    if (needsTiktok) {
+      tiktokMedia = await generateGoldDailyMedia({
+        env: args.env,
+        vars: content.vars,
+        voiceInput: content.voiceInput,
+        forTiktok: true,
+      });
+    }
+  }
 
   const captions = content.platformCaptions;
   const results: SocialPublishResult['results'] = [];
@@ -325,9 +347,9 @@ export async function publishGoldDailyVideoBundle(args: {
             env: args.env,
             config: tiktok,
             title: captions.ttCaption,
-            videoBytes: media.videoBytes,
-            videoUrl: media.videoPublicUrl,
-            videoDurationSec: media.seconds,
+            videoBytes: tiktokMedia.videoBytes,
+            videoUrl: tiktokMedia.videoPublicUrl,
+            videoDurationSec: tiktokMedia.seconds,
           }),
       }),
     );

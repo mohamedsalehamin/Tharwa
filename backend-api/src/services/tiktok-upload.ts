@@ -54,7 +54,10 @@ function tiktokInitErrorMessage(code: string | undefined, message: string, video
 
 function tiktokPublishFailReason(reason: string): string {
   if (/integration guidelines|content-sharing-guidelines/i.test(reason)) {
-    return `${reason} Sandbox direct post requires SELF_ONLY privacy, a private TikTok account, PULL_FROM_URL from a verified domain, and no promotional watermarks in the video.`;
+    return `${reason} Sandbox checklist: (1) TikTok app → Settings → Privacy → turn ON Private account before posting, (2) TIKTOK_DIRECT_PRIVACY=SELF_ONLY, (3) video must not include Thrwa logo/CTA watermarks (API now strips these for TikTok), (4) use draft mode (TIKTOK_POST_MODE=draft) if direct post still fails before app audit.`;
+  }
+  if (/private account|unaudited_client/i.test(reason)) {
+    return `${reason} Set the TikTok account to Private in the app, keep TIKTOK_DIRECT_PRIVACY=SELF_ONLY, then retry.`;
   }
   return reason;
 }

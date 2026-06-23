@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import type { Env } from '../config/env.js';
 import { probeAudioDurationSeconds } from './gold-voice-synthesis.js';
 import { renderSvgToPng } from './social-image.js';
-import { fillTemplate, loadSocialTemplateSvg } from './social-templates.js';
+import { fillTemplate, loadSocialTemplateSvg, stripSvgForTiktokDirectPost } from './social-templates.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -79,15 +79,44 @@ function ctaCenterOnVerticalFrame(): { x: number; y: number } {
 
 async function renderSilentVideo(
   baseVerticalPng: Buffer,
-  ctaPng: Buffer,
+  ctaPng: Buffer | null,
   outputPath: string,
   seconds: number,
 ): Promise<void> {
   const workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gold-short-'));
   const basePath = path.join(workDir, 'base.png');
-  const ctaPath = path.join(workDir, 'cta.png');
   try {
     await fs.writeFile(basePath, baseVerticalPng);
+
+    if (!ctaPng) {
+      await execFileAsync(
+        'ffmpeg',
+        [
+          '-y',
+          '-loop',
+          '1',
+          '-i',
+          basePath,
+          '-t',
+          String(seconds),
+          '-r',
+          '30',
+          '-vf',
+          'format=yuv420p',
+          '-c:v',
+          'libx264',
+          '-pix_fmt',
+          'yuv420p',
+          '-movflags',
+          '+faststart',
+          outputPath,
+        ],
+        { maxBuffer: 10 * 1024 * 1024, timeout: 120_000 },
+      );
+      return;
+    }
+
+    const ctaPath = path.join(workDir, 'cta.png');
     await fs.writeFile(ctaPath, ctaPng);
 
     const fps = 30;
@@ -175,6 +204,8 @@ export async function renderGoldShortVideo(args: {
   outputDir: string;
   voicePath?: string | null;
   minSeconds?: number;
+  /** Strip logo/CTA for TikTok Content Posting API compliance. */
+  forTiktok?: boolean;
 }): Promise<GoldShortVideoResult> {
   await ensureFfmpegAvailable();
   await fs.mkdir(args.outputDir, { recursive: true });
@@ -185,18 +216,26 @@ export async function renderGoldShortVideo(args: {
   }
 
   const svgTemplate = await loadSocialTemplateSvg(args.env, 'gold_daily');
-  const svg = fillTemplate(svgTemplate, args.vars);
+  const filled = fillTemplate(svgTemplate, args.vars);
+  const svg = args.forTiktok ? stripSvgForTiktokDirectPost(filled) : filled;
   const squarePng = await renderSvgToPng(svg, args.env);
-  const { baseSquare, cta } = await splitCtaLayers(squarePng);
-  const baseVertical = await toVerticalFrame(baseSquare);
   const framePng = await toVerticalFrame(squarePng);
+  let baseVertical: Buffer;
+  let ctaPng: Buffer | null = null;
+  if (args.forTiktok) {
+    baseVertical = framePng;
+  } else {
+    const { baseSquare, cta } = await splitCtaLayers(squarePng);
+    baseVertical = await toVerticalFrame(baseSquare);
+    ctaPng = cta;
+  }
 
   const pngPath = path.join(args.outputDir, 'gold-daily-frame.png');
   const videoPath = path.join(args.outputDir, 'gold-daily-silent.mp4');
   const videoWithVoicePath = path.join(args.outputDir, 'gold-daily.mp4');
 
   await fs.writeFile(pngPath, framePng);
-  await renderSilentVideo(baseVertical, cta, videoPath, seconds);
+  await renderSilentVideo(baseVertical, ctaPng, videoPath, seconds);
 
   if (args.voicePath) {
     await muxAudioVideo(videoPath, args.voicePath, videoWithVoicePath);

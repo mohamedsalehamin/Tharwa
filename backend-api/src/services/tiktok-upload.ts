@@ -246,7 +246,6 @@ export async function uploadTiktokVideo(args: {
         disable_comment: true,
         brand_content_toggle: false,
         brand_organic_toggle: false,
-        is_aigc: true,
       },
       source_info: usePullFromUrl
         ? { source: 'PULL_FROM_URL', video_url: pullVideoUrl }

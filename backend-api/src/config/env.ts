@@ -222,6 +222,8 @@ const envSchema = z.object({
   TIKTOK_DIRECT_PRIVACY: z
     .enum(['SELF_ONLY', 'PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR'])
     .default('SELF_ONLY'),
+  /** Rewrite video pull URLs to this verified origin (e.g. https://thrwa.co when api host is unverified). */
+  TIKTOK_PULL_URL_ORIGIN: z.string().url().optional(),
   /** Comma-separated Google OAuth client IDs (Web + iOS + Android) allowed as `aud` on ID tokens. */
   GOOGLE_OAUTH_CLIENT_IDS: z
     .string()

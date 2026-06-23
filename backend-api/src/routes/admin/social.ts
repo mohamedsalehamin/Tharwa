@@ -198,6 +198,7 @@ export const adminSocialRoutes: FastifyPluginAsync = async (app) => {
           oauthScopes: getTiktokOAuthScopes(ctx().env),
           postMode: getTiktokPostMode(ctx().env),
           redirectUri: getTiktokRedirectUri(ctx().env),
+          pullUrlOrigin: ctx().env.TIKTOK_PULL_URL_ORIGIN ?? null,
           account: tiktok ? tiktokSocialPublicFromConfig(tiktok, ctx().env) : null,
         },
         brand: {

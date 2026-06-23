@@ -296,6 +296,7 @@ export type SocialStatusResponse = {
     oauthScopes?: string
     postMode?: 'draft' | 'direct'
     redirectUri?: string | null
+    pullUrlOrigin?: string | null
     account: TiktokSocialPublic | null
   }
   brand: {

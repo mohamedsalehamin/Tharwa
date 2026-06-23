@@ -822,6 +822,15 @@ export function SocialIntegrationsSection({
                 </span>
               </>
             ) : null}
+            {status?.tiktok?.pullUrlOrigin ? (
+              <>
+                {' '}
+                · Pull URL:{' '}
+                <span className='font-mono text-xs'>
+                  {status.tiktok.pullUrlOrigin}
+                </span>
+              </>
+            ) : null}
           </CardDescription>
         </CardHeader>
         <CardContent className='grid gap-4'>

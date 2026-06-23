@@ -38,7 +38,7 @@ function pickPrivacyLevel(options: string[], preferred: string | undefined): str
 function tiktokInitErrorMessage(code: string | undefined, message: string, videoUrl?: string): string {
   if (code === 'url_ownership_unverified') {
     const host = videoUrl ? new URL(videoUrl).host : 'your video URL host';
-    return `${message} Verify ${host}/ in TikTok Developer Portal → Manage URL properties.`;
+    return `${message} Verify https://${host}/ in TikTok Developer Portal → Manage URL properties, or set TIKTOK_PULL_URL_ORIGIN to an already-verified domain (e.g. https://thrwa.co) with /files/ proxied to the API.`;
   }
   if (code === 'unaudited_client_can_only_post_to_private_accounts') {
     return `${message} Set the TikTok account to private, use TIKTOK_DIRECT_PRIVACY=SELF_ONLY, then retry.`;
@@ -130,6 +130,27 @@ async function uploadVideoBytes(uploadUrl: string, videoBytes: Buffer): Promise<
   }
 }
 
+/** Map stored public URL to a TikTok-verified pull origin when configured. */
+export function resolveTiktokPullVideoUrl(env: Env, publicUrl: string): string {
+  const pullOrigin = env.TIKTOK_PULL_URL_ORIGIN?.replace(/\/$/, '');
+  if (!pullOrigin) return publicUrl;
+
+  const storageOrigin = (env.SOCIAL_PUBLIC_FILES_ORIGIN ?? env.PUBLIC_FILES_ORIGIN)?.replace(
+    /\/$/,
+    '',
+  );
+  if (storageOrigin && publicUrl.startsWith(storageOrigin)) {
+    return `${pullOrigin}${publicUrl.slice(storageOrigin.length)}`;
+  }
+
+  try {
+    const url = new URL(publicUrl);
+    return `${pullOrigin}${url.pathname}${url.search}`;
+  } catch {
+    return publicUrl;
+  }
+}
+
 /** Upload MP4 to TikTok (direct post or inbox draft depending on TIKTOK_POST_MODE). */
 export async function uploadTiktokVideo(args: {
   env: Env;
@@ -189,6 +210,7 @@ export async function uploadTiktokVideo(args: {
       'TikTok direct post requires a public video URL (PULL_FROM_URL). Set SOCIAL_PUBLIC_FILES_ORIGIN on the API.',
     );
   }
+  const pullVideoUrl = resolveTiktokPullVideoUrl(args.env, args.videoUrl.trim());
 
   const creator = await queryCreatorPublishInfo(tokens.accessToken);
   if (!creator.canPostMore) {
@@ -204,7 +226,7 @@ export async function uploadTiktokVideo(args: {
   }
 
   const privacyLevel = pickPrivacyLevel(creator.privacyLevelOptions, args.env.TIKTOK_DIRECT_PRIVACY);
-  const usePullFromUrl = Boolean(args.videoUrl?.trim());
+  const usePullFromUrl = Boolean(pullVideoUrl);
 
   const initRes = await fetch(TIKTOK_DIRECT_INIT, {
     method: 'POST',
@@ -224,7 +246,7 @@ export async function uploadTiktokVideo(args: {
         is_aigc: true,
       },
       source_info: usePullFromUrl
-        ? { source: 'PULL_FROM_URL', video_url: args.videoUrl!.trim() }
+        ? { source: 'PULL_FROM_URL', video_url: pullVideoUrl }
         : {
             source: 'FILE_UPLOAD',
             video_size: videoSize,
@@ -240,7 +262,7 @@ export async function uploadTiktokVideo(args: {
   }>;
   if (!initRes.ok || initJson.error?.code !== 'ok') {
     const message = initJson.error?.message ?? `TikTok video init failed (${initRes.status})`;
-    throw new Error(tiktokInitErrorMessage(initJson.error?.code, message, args.videoUrl));
+    throw new Error(tiktokInitErrorMessage(initJson.error?.code, message, pullVideoUrl));
   }
   const publishId = initJson.data?.publish_id;
   const uploadUrl = initJson.data?.upload_url;

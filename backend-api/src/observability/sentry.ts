@@ -11,8 +11,36 @@ export function initSentry(env: Env): void {
     release: env.BUILD_SHA !== 'dev' ? env.BUILD_SHA : undefined,
     tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE,
     enabled: env.NODE_ENV !== 'test',
+    integrations: [
+      // Fastify v5: route-scoped transactions + error capture via diagnostics channel.
+      Sentry.fastifyIntegration({
+        shouldHandleError(_error, _request, reply) {
+          return reply.statusCode >= 500;
+        },
+      }),
+      Sentry.prismaIntegration(),
+    ],
   });
   enabled = true;
+}
+
+/** Attach per-request tags so Sentry MCP issue search maps cleanly to routes/users. */
+export function bindSentryRequestContext(context: {
+  requestId: string;
+  method: string;
+  url: string;
+}): void {
+  if (!enabled) return;
+  const scope = Sentry.getIsolationScope();
+  scope.setTag('request_id', context.requestId);
+  scope.setTag('http.method', context.method);
+  scope.setTag('http.route', context.url.split('?')[0] ?? context.url);
+}
+
+/** Attach authenticated consumer identity for user-scoped issue triage in Sentry. */
+export function bindSentryConsumerUser(userId: string): void {
+  if (!enabled) return;
+  Sentry.getIsolationScope().setUser({ id: userId });
 }
 
 export function isSentryEnabled(): boolean {

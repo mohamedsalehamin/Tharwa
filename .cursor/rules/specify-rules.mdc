@@ -6,15 +6,16 @@ alwaysApply: true
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the implementation plan at:
 
-**Plan:** `specs/002-wealth-planning-core/plan.md`
+**Plan:** `specs/003-masar-investor-profile/plan.md`
 
 Supporting artifacts for the active feature:
 
-- **Spec:** `specs/002-wealth-planning-core/spec.md`
-- **Research / decisions:** `specs/002-wealth-planning-core/research.md`
-- **Data model:** `specs/002-wealth-planning-core/data-model.md`
-- **API contract (OpenAPI fragment):** `specs/002-wealth-planning-core/contracts/openapi.wealth.yaml`
-- **Quickstart:** `specs/002-wealth-planning-core/quickstart.md`
+- **Spec:** `specs/003-masar-investor-profile/spec.md`
+- **Research / decisions:** `specs/003-masar-investor-profile/research.md`
+- **Data model:** `specs/003-masar-investor-profile/data-model.md`
+- **API contract (OpenAPI fragment):** `specs/003-masar-investor-profile/contracts/openapi.masar.yaml`
+- **Quickstart:** `specs/003-masar-investor-profile/quickstart.md`
 
-Baseline platform context (prior feature): `specs/001-tharwa-platform-mvp/plan.md`
+Prior feature context: `specs/002-wealth-planning-core/plan.md` (net worth, goals, real-return, InflationBenchmark — reused by Masar).
+Baseline platform context: `specs/001-tharwa-platform-mvp/plan.md`
 <!-- SPECKIT END -->

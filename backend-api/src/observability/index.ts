@@ -9,4 +9,10 @@ export async function initObservability(env: Env): Promise<void> {
   await initOtel(env);
 }
 
-export { captureException, flushSentry, isSentryEnabled } from './sentry.js';
+export {
+  bindSentryConsumerUser,
+  bindSentryRequestContext,
+  captureException,
+  flushSentry,
+  isSentryEnabled,
+} from './sentry.js';

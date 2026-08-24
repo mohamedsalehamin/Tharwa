@@ -149,6 +149,53 @@ paths:
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
+  /v1/stocks/sparklines:
+    get:
+      tags: [Market]
+      summary: Compact close-only sparkline series for one or more symbols
+      description: >
+        Returns a lightweight close-price series per symbol for rendering inline
+        mini-charts (e.g. in the watchlist or market list). Unknown or
+        unavailable symbols are returned with an empty series and `isStale: true`
+        rather than failing the whole request.
+      operationId: listStockSparklines
+      parameters:
+        - name: symbols
+          in: query
+          required: true
+          description: Comma-separated tickers (max 25), e.g. `COMI,HRHO,EGX:SWDY`.
+          schema:
+            type: string
+            example: COMI,HRHO,SWDY
+        - name: range
+          in: query
+          schema:
+            type: string
+            enum: [1d, 1w, 1m, 1y]
+            default: 1m
+      responses:
+        "200":
+          description: Sparkline series per requested symbol
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, range, disclaimer]
+                properties:
+                  disclaimer:
+                    type: string
+                  range:
+                    type: string
+                    enum: [1d, 1w, 1m, 1y]
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EquitySparkline"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
   /v1/stocks/{symbol}:
     get:
       tags: [Market]
@@ -1693,6 +1740,131 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /v1/masar/archetypes:
+    get:
+      tags: [Consumer]
+      summary: Catalog of the 5 investor archetypes with default illustrative allocations
+      operationId: listMasarArchetypes
+      responses:
+        "200":
+          description: Archetype catalog (reference data; localized labels optional)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, disclaimer]
+                properties:
+                  disclaimer:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Archetype"
+
+  /v1/masar/result:
+    post:
+      tags: [Consumer]
+      summary: Compute a (transient) archetype + default model from quiz answers
+      description: Public and stateless — nothing is stored. Deterministic for a given answer set.
+      operationId: computeMasarResult
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuizAnswers"
+      responses:
+        "200":
+          description: Derived archetype + default illustrative model
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MasarResultView"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /v1/masar/illustration:
+    post:
+      tags: [Consumer]
+      summary: Backward-looking historical illustration of a model mix vs inflation, USD, gold
+      description: >
+        Public. Returns how the supplied asset-class mix would have tracked over the selected
+        period versus EGP inflation, USD/EGP, and gold. Illustrative and backward-looking only —
+        never a prediction, expected value, or guarantee.
+      operationId: computeMasarIllustration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IllustrationInput"
+      responses:
+        "200":
+          description: Historical illustration result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IllustrationResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /v1/masar/profile:
+    get:
+      tags: [Consumer]
+      summary: Get the signed-in consumer's saved Masar profile (or null)
+      operationId: getMasarProfile
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Saved profile, or null when none saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [profile]
+                properties:
+                  profile:
+                    oneOf:
+                      - $ref: "#/components/schemas/MasarProfile"
+                      - type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      tags: [Consumer]
+      summary: Save (overwrite) the consumer's Masar profile — keep latest only
+      operationId: saveMasarProfile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MasarProfileInput"
+      responses:
+        "200":
+          description: Saved/overwritten profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MasarProfile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      tags: [Consumer]
+      summary: Delete the consumer's saved Masar profile
+      operationId: deleteMasarProfile
+      security:
+        - BearerAuth: []
+      responses:
+        "204":
+          description: Deleted (idempotent)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /admin/v1/inflation-benchmarks:
     get:
       tags: [Admin]
@@ -1734,6 +1906,52 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InflationBenchmark"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/v1/masar-benchmarks:
+    get:
+      tags: [Admin]
+      summary: List Masar monthly benchmark points (most recent first)
+      operationId: adminListMasarBenchmarks
+      security:
+        - AdminAuth: []
+      responses:
+        "200":
+          description: Benchmark series
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MasarBenchmarkPoint"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      tags: [Admin]
+      summary: Upsert a Masar benchmark point for a month (audited)
+      operationId: adminUpsertMasarBenchmark
+      security:
+        - AdminAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MasarBenchmarkPointInput"
+      responses:
+        "200":
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MasarBenchmarkPoint"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -1919,6 +2137,15 @@ components:
               type: number
               format: double
               nullable: true
+            sparkline:
+              type: array
+              nullable: true
+              description: >
+                Compact daily close series (oldest → newest) for an inline
+                mini-chart, sourced from stored history. Null when no series is
+                available for the instrument.
+              items:
+                type: number
 
     EquityDetail:
       allOf:
@@ -2041,6 +2268,33 @@ components:
                 type: integer
                 format: int64
                 nullable: true
+
+    EquitySparkline:
+      type: object
+      required: [symbol, range, closes, isStale]
+      properties:
+        symbol:
+          type: string
+        range:
+          type: string
+          enum: [1d, 1w, 1m, 1y]
+        closes:
+          type: array
+          description: Close prices oldest → newest, ready to plot as a mini line.
+          items:
+            type: number
+        asOf:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of the most recent point, or null when no data.
+        changePct:
+          type: number
+          nullable: true
+          description: First → last percentage change over the series window.
+        isStale:
+          type: boolean
+          description: True when no usable points were available for the symbol.
 
     MarketSummary:
       type: object
@@ -2777,6 +3031,14 @@ components:
           type: string
         isConsumerVisible:
           type: boolean
+        sparkline:
+          type: array
+          nullable: true
+          description: >
+            Compact daily close series (oldest → newest) for an inline mini-chart,
+            sourced from stored history. Null when no series is available.
+          items:
+            type: number
 
     WatchlistListResponse:
       type: object
@@ -3420,6 +3682,209 @@ components:
     InflationBenchmark:
       allOf:
         - $ref: "#/components/schemas/InflationBenchmarkInput"
+        - type: object
+          required: [id]
+          properties:
+            id:
+              type: string
+              format: uuid
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    ArchetypeId:
+      type: string
+      enum: [conservative, cautious_balanced, balanced, growth_balanced, aggressive_long_term]
+
+    Allocation:
+      type: object
+      description: Asset-class-level only — no securities or funds. Sums to 100, 5% steps.
+      required: [equityPct, fixedIncomePct, goldPct]
+      properties:
+        equityPct:
+          type: integer
+          minimum: 0
+          maximum: 100
+          multipleOf: 5
+        fixedIncomePct:
+          type: integer
+          minimum: 0
+          maximum: 100
+          multipleOf: 5
+        goldPct:
+          type: integer
+          minimum: 0
+          maximum: 100
+          multipleOf: 5
+
+    Archetype:
+      type: object
+      required: [id, defaultAllocation]
+      properties:
+        id:
+          $ref: "#/components/schemas/ArchetypeId"
+        nameLabel:
+          type: string
+        descriptionLabel:
+          type: string
+        defaultAllocation:
+          $ref: "#/components/schemas/Allocation"
+
+    QuizAnswers:
+      type: object
+      required: [goal, volatilityComfort, nearTermNeed, shariaPreferred]
+      properties:
+        goal:
+          type: string
+          enum: [grow_long_term, protect_income_short_term, not_sure]
+        volatilityComfort:
+          type: string
+          enum: [comfortable, somewhat, uncomfortable]
+        nearTermNeed:
+          type: string
+          enum: [yes, no, not_sure]
+        shariaPreferred:
+          type: boolean
+
+    MasarResultView:
+      type: object
+      required: [archetype, defaultAllocation, shariaPreferred, disclaimer]
+      properties:
+        archetype:
+          $ref: "#/components/schemas/ArchetypeId"
+        nameLabel:
+          type: string
+        descriptionLabel:
+          type: string
+        defaultAllocation:
+          $ref: "#/components/schemas/Allocation"
+        shariaPreferred:
+          type: boolean
+        disclaimer:
+          type: string
+
+    IllustrationInput:
+      type: object
+      required: [allocation]
+      properties:
+        allocation:
+          $ref: "#/components/schemas/Allocation"
+        months:
+          type: integer
+          minimum: 1
+          maximum: 120
+          default: 60
+
+    IllustrationBenchmark:
+      type: object
+      required: [key, outcome]
+      properties:
+        key:
+          type: string
+          enum: [inflation, usd, gold]
+        benchmarkChangePct:
+          type: number
+          nullable: true
+        realDeltaPct:
+          type: number
+          nullable: true
+        outcome:
+          type: string
+          enum: [ahead, behind, flat, unavailable]
+
+    IllustrationResult:
+      type: object
+      required: [periodStart, periodEnd, hasSufficientData, disclaimer]
+      properties:
+        periodStart:
+          type: string
+          format: date
+          nullable: true
+        periodEnd:
+          type: string
+          format: date
+          nullable: true
+        mixChangePct:
+          type: number
+          nullable: true
+        benchmarks:
+          type: array
+          items:
+            $ref: "#/components/schemas/IllustrationBenchmark"
+        sourceLabel:
+          type: string
+          nullable: true
+        asOf:
+          type: string
+          format: date-time
+          nullable: true
+        hasSufficientData:
+          type: boolean
+        disclaimer:
+          type: string
+
+    MasarProfileInput:
+      type: object
+      required: [archetype, allocation]
+      properties:
+        archetype:
+          $ref: "#/components/schemas/ArchetypeId"
+        allocation:
+          $ref: "#/components/schemas/Allocation"
+        shariaPreferred:
+          type: boolean
+          default: false
+        answers:
+          $ref: "#/components/schemas/QuizAnswers"
+
+    MasarProfile:
+      allOf:
+        - $ref: "#/components/schemas/MasarProfileInput"
+        - type: object
+          required: [id, createdAt, updatedAt]
+          properties:
+            id:
+              type: string
+              format: uuid
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    MasarBenchmarkPointInput:
+      type: object
+      required: [periodMonth, sourceLabel]
+      properties:
+        periodMonth:
+          type: string
+          format: date
+        equityIndex:
+          type: number
+          nullable: true
+        fixedIncomeIndex:
+          type: number
+          nullable: true
+        goldEgpPerGram:
+          type: number
+          nullable: true
+        usdEgp:
+          type: number
+          nullable: true
+        sourceLabel:
+          type: string
+        asOf:
+          type: string
+          format: date-time
+          nullable: true
+
+    MasarBenchmarkPoint:
+      allOf:
+        - $ref: "#/components/schemas/MasarBenchmarkPointInput"
         - type: object
           required: [id]
           properties:

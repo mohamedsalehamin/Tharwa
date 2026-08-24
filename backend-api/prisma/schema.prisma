@@ -400,6 +400,7 @@ model ConsumerUser {
   netWorthComponents  ManualNetWorthComponent[]
   netWorthSnapshots   NetWorthSnapshot[]
   financialGoals      FinancialGoal[]
+  masarResult         MasarResult?
 
   @@map("consumer_users")
 }
@@ -703,6 +704,48 @@ model InflationBenchmark {
 
   @@index([periodMonth(sort: Desc)])
   @@map("inflation_benchmarks")
+}
+
+enum MasarArchetype {
+  conservative
+  cautious_balanced
+  balanced
+  growth_balanced
+  aggressive_long_term
+}
+
+/// Signed-in consumer's saved Masar outcome (one active row per consumer; retake overwrites).
+model MasarResult {
+  id              String         @id @default(uuid())
+  consumerUserId  String         @unique @map("consumer_user_id")
+  consumerUser    ConsumerUser   @relation(fields: [consumerUserId], references: [id], onDelete: Cascade)
+  archetype       MasarArchetype
+  equityPct       Int            @map("equity_pct")
+  fixedIncomePct  Int            @map("fixed_income_pct")
+  goldPct         Int            @map("gold_pct")
+  shariaPreferred Boolean        @default(false) @map("sharia_preferred")
+  answers         Json?          @map("answers")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  @@map("masar_results")
+}
+
+/// Admin-managed monthly index series for Masar historical illustration.
+model MasarBenchmarkPoint {
+  id               String    @id @default(uuid())
+  periodMonth      DateTime  @unique @map("period_month") @db.Date
+  equityIndex      Decimal?  @map("equity_index") @db.Decimal(18, 6)
+  fixedIncomeIndex Decimal?  @map("fixed_income_index") @db.Decimal(18, 6)
+  goldEgpPerGram   Decimal?  @map("gold_egp_per_gram") @db.Decimal(18, 6)
+  usdEgp           Decimal?  @map("usd_egp") @db.Decimal(18, 6)
+  sourceLabel      String    @map("source_label")
+  asOf             DateTime? @map("as_of")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([periodMonth(sort: Desc)])
+  @@map("masar_benchmark_points")
 }
 
 /// Glossary section tab (Learn → glossary categories).

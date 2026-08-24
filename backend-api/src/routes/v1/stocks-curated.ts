@@ -4,7 +4,10 @@ import { DISCLAIMER_COMBINED } from '../../i18n/disclaimers.js';
 import {
   getCuratedEquityDetail,
   getCuratedEquityHistory,
+  getCuratedEquitySparkline,
   listMarketEgxStocksCached,
+  normalizeEquitySymbolParam,
+  type EquitySparkline,
 } from '../../services/curated-equities.js';
 import { enrichEquityDetailWithScanner } from '../../services/equity-profile-enrichment.js';
 import {
@@ -20,6 +23,17 @@ const historyQuery = z.object({
   range: historyRangeSchema.default('1m'),
 });
 
+const SPARKLINES_MAX_SYMBOLS = 25;
+
+const sparklinesQuery = z.object({
+  symbols: z.string().min(1),
+  range: historyRangeSchema.default('1m'),
+});
+
+function staleSparkline(symbol: string, range: z.infer<typeof historyRangeSchema>): EquitySparkline {
+  return { symbol, range, closes: [], asOf: null, changePct: null, isStale: true };
+}
+
 function zodMessage(err: z.ZodError): string {
   return err.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
 }
@@ -32,6 +46,54 @@ export const v1StocksCuratedRoutes: FastifyPluginAsync = async (app) => {
       return reply.send({
         disclaimer: DISCLAIMER_COMBINED,
         fetchedAt: bundleFetchedAt,
+        items,
+      });
+    } catch (e) {
+      if (!reply.sent) sendError(reply, e);
+      return;
+    }
+  });
+
+  app.get('/stocks/sparklines', async (req, reply) => {
+    try {
+      const parsed = sparklinesQuery.safeParse(req.query);
+      if (!parsed.success) {
+        throw new AppError('VALIDATION', zodMessage(parsed.error), 400);
+      }
+      if (!app.ctx.env.EQUITIES_TV_ENABLED) {
+        throw new AppError('UPSTREAM', 'Equity chart data disabled', 503);
+      }
+      const { range } = parsed.data;
+      const symbols = [
+        ...new Set(
+          parsed.data.symbols
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0),
+        ),
+      ];
+      if (symbols.length === 0) {
+        throw new AppError('VALIDATION', 'symbols must contain at least one ticker', 400);
+      }
+      if (symbols.length > SPARKLINES_MAX_SYMBOLS) {
+        throw new AppError('VALIDATION', `at most ${SPARKLINES_MAX_SYMBOLS} symbols per request`, 400);
+      }
+
+      const items = await Promise.all(
+        symbols.map(async (sym) => {
+          try {
+            const spark = await getCuratedEquitySparkline(app.ctx.env, app.ctx.redis, app.log, sym, range);
+            return spark ?? staleSparkline(normalizeEquitySymbolParam(sym), range);
+          } catch (e) {
+            app.log.warn({ e, sym }, 'equity sparkline failed');
+            return staleSparkline(normalizeEquitySymbolParam(sym), range);
+          }
+        }),
+      );
+
+      return reply.send({
+        disclaimer: DISCLAIMER_COMBINED,
+        range,
         items,
       });
     } catch (e) {

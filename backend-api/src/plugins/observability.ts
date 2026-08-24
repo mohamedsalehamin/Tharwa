@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { httpRequestDurationSeconds, httpRequestsTotal } from '../lib/metrics.js';
-import { captureException } from '../observability/sentry.js';
+import { bindSentryRequestContext } from '../observability/sentry.js';
 import { sendError } from '../lib/errors.js';
 
 function routeLabel(url: string, routeTemplate?: string): string {
@@ -13,6 +13,11 @@ export const observabilityPlugin: FastifyPluginAsync = async (app) => {
   app.addHook('onRequest', async (req, reply) => {
     reply.header('x-request-id', req.id);
     req.observabilityStart = process.hrtime.bigint();
+    bindSentryRequestContext({
+      requestId: req.id,
+      method: req.method,
+      url: req.url,
+    });
   });
 
   app.addHook('onResponse', async (req, reply) => {
@@ -26,11 +31,6 @@ export const observabilityPlugin: FastifyPluginAsync = async (app) => {
   });
 
   app.setErrorHandler((error, req, reply) => {
-    captureException(error, {
-      requestId: req.id,
-      method: req.method,
-      url: req.url,
-    });
     req.log.error({ err: error, reqId: req.id }, 'request failed');
     if (!reply.sent) {
       sendError(reply, error);

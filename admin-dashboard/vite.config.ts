@@ -18,7 +18,6 @@ export default defineConfig({
       'localhost',
       '127.0.0.1',
       'admin.thrwa.co',
-      'admin.7aduta.com',
     ],
     proxy: {
       '/__tharwa_api': {
@@ -35,7 +34,6 @@ export default defineConfig({
       'localhost',
       '127.0.0.1',
       'admin.thrwa.co',
-      'admin.7aduta.com',
     ],
   },
   plugins: [

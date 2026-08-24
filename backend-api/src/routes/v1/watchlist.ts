@@ -8,6 +8,7 @@ import {
   equityInstrumentRefBody,
   resolveEquityInstrumentId,
 } from '../../services/equity-instrument-ref.js';
+import { listSparklineClosesByInstrument } from '../../services/curated-equities.js';
 
 const addBody = equityInstrumentRefBody;
 
@@ -35,6 +36,7 @@ export const v1WatchlistRoutes: FastifyPluginAsync = async (app) => {
           },
         },
       });
+      const sparklines = await listSparklineClosesByInstrument(rows.map((r) => r.instrumentId));
       return reply.send({
         items: rows.map((r) => ({
           id: r.id,
@@ -44,6 +46,7 @@ export const v1WatchlistRoutes: FastifyPluginAsync = async (app) => {
           displayNameEn: r.instrument.displayNameEn,
           kind: r.instrument.kind,
           isConsumerVisible: r.instrument.isConsumerVisible,
+          sparkline: sparklines.get(r.instrumentId) ?? null,
         })),
       });
     } catch (e) {
@@ -154,6 +157,7 @@ export const v1WatchlistRoutes: FastifyPluginAsync = async (app) => {
           instrument: { select: { code: true, displayNameEn: true, kind: true, isConsumerVisible: true } },
         },
       });
+      const sparklines = await listSparklineClosesByInstrument(out.map((r) => r.instrumentId));
       return reply.send({
         items: out.map((r) => ({
           id: r.id,
@@ -163,6 +167,7 @@ export const v1WatchlistRoutes: FastifyPluginAsync = async (app) => {
           displayNameEn: r.instrument.displayNameEn,
           kind: r.instrument.kind,
           isConsumerVisible: r.instrument.isConsumerVisible,
+          sparkline: sparklines.get(r.instrumentId) ?? null,
         })),
       });
     } catch (e) {

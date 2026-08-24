@@ -90,7 +90,7 @@ npm run build
 Nginx site config (replace the `proxy_pass` block):
 
 ```nginx
-root /www/wwwroot/7aduta.com/Tharwa/admin-dashboard/dist;
+root /www/wwwroot/thrwa.co/Tharwa/admin-dashboard/dist;
 index index.html;
 
 location / {

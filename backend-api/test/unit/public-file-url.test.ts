@@ -10,13 +10,13 @@ describe('resolvePublicFileUrl', () => {
 
   it('extracts /files paths from legacy absolute URLs', () => {
     expect(
-      publicUploadRelativePath('https://api.7aduta.com/files/metal-flags/GOLD_EGP.png'),
+      publicUploadRelativePath('https://api.example.test/files/metal-flags/GOLD_EGP.png'),
     ).toBe('/files/metal-flags/GOLD_EGP.png');
   });
 
   it('rebases legacy upload URLs onto PUBLIC_FILES_ORIGIN', () => {
     expect(
-      resolvePublicFileUrl(env, 'https://api.7aduta.com/files/metal-flags/GOLD_EGP.png'),
+      resolvePublicFileUrl(env, 'https://api.example.test/files/metal-flags/GOLD_EGP.png'),
     ).toBe('https://api.thrwa.co/files/metal-flags/GOLD_EGP.png');
   });
 

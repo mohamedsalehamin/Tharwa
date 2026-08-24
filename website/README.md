@@ -30,19 +30,19 @@ npm run dev --prefix website       # port 3002
 cp .env.example .env
 ```
 
-| Variable | Purpose |
-|----------|---------|
-| `VITE_API_BASE` | Production: browser calls this API origin |
-| `VITE_BACKEND_PROXY_TARGET` | Dev: Vite proxies `/__tharwa_api` here |
+| Variable                    | Purpose                                   |
+| --------------------------- | ----------------------------------------- |
+| `VITE_API_BASE`             | Production: browser calls this API origin |
+| `VITE_BACKEND_PROXY_TARGET` | Dev: Vite proxies `/__tharwa_api` here    |
 
 ## Routes
 
-| Path | Description |
-|------|-------------|
-| `/` | Landing page |
-| `/download/android` | Redirect to Google Play |
-| `/download/ios` | Redirect to App Store |
-| `/:slug` | CMS page (e.g. `/privacy`, `/contact`) |
+| Path                | Description                            |
+| ------------------- | -------------------------------------- |
+| `/`                 | Landing page                           |
+| `/download/android` | Redirect to Google Play                |
+| `/download/ios`     | Redirect to App Store                  |
+| `/:slug`            | CMS page (e.g. `/privacy`, `/contact`) |
 
 ## Admin
 

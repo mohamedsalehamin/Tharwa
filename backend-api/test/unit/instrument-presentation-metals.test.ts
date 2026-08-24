@@ -51,12 +51,12 @@ describe('applyMetalsPresentation metal flags', () => {
     ]);
   });
 
-  it('rebases legacy api.7aduta.com flag URLs onto PUBLIC_FILES_ORIGIN', async () => {
+  it('rebases legacy absolute flag URLs onto PUBLIC_FILES_ORIGIN', async () => {
     mockFindFirst.mockImplementation(({ where }: { where?: { code?: string } }) => {
       if (where?.code === 'GOLD_EGP') {
         return Promise.resolve({
           isConsumerVisible: true,
-          metadata: { flagUrl: 'https://api.7aduta.com/files/metal-flags/GOLD_EGP.png' },
+          metadata: { flagUrl: 'https://api.example.test/files/metal-flags/GOLD_EGP.png' },
         });
       }
       if (where?.code === 'SILVER_EGP') {

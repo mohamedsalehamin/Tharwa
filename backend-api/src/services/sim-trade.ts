@@ -16,6 +16,18 @@ export type SimQuoteCtx = {
   log: FastifyBaseLogger;
 };
 
+
+/** Age is measured from quote fetch time, not last candle time (after-hours last bar is old). */
+export function isPracticeQuoteFresh(
+  fetchedAtIso: string,
+  maxAgeSec: number,
+  nowMs = Date.now(),
+): boolean {
+  const quoteMs = new Date(fetchedAtIso).getTime();
+  if (!Number.isFinite(quoteMs)) return false;
+  return (nowMs - quoteMs) / 1000 <= maxAgeSec;
+}
+
 export async function executeSimTrade(
   consumerUserId: string,
   ref: EquityInstrumentRef & { side: 'buy' | 'sell'; quantity: number },
@@ -61,12 +73,7 @@ export async function executeSimTrade(
     throw new AppError('UPSTREAM', 'No indicative price available for this symbol', 503);
   }
 
-  const quoteMs = new Date(q.asOf).getTime();
-  if (!Number.isFinite(quoteMs)) {
-    throw new AppError('UPSTREAM', 'Invalid quote timestamp', 503);
-  }
-  const ageSec = (Date.now() - quoteMs) / 1000;
-  if (ageSec > quoteCtx.env.SIM_MAX_QUOTE_AGE_SEC) {
+  if (!isPracticeQuoteFresh(q.fetchedAt ?? q.asOf, quoteCtx.env.SIM_MAX_QUOTE_AGE_SEC)) {
     throw new AppError(
       'UPSTREAM',
       `Quote is too stale for practice trading (max ${quoteCtx.env.SIM_MAX_QUOTE_AGE_SEC}s)`,

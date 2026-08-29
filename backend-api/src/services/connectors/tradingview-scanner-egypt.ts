@@ -2,13 +2,24 @@
 
 import { observeConnector } from '../../lib/connector-metrics.js';
 import { logoUrlFromTvLogoid } from '../../lib/tv-logo.js';
+import { relativeVolume } from '../relative-volume.js';
 
-export type EgxMoverList = 'gainers' | 'losers' | 'volume';
+export type EgxMoverList = 'gainers' | 'losers' | 'volume' | 'unusual';
 
 const SCAN_URL = 'https://scanner.tradingview.com/egypt/scan';
 
 /** `description` is often Arabic company text when `options.lang` is `ar`. */
-const COLUMNS = ['name', 'description', 'close', 'change', 'change_abs', 'volume', 'logoid'] as const;
+const COLUMNS = [
+  'name',
+  'description',
+  'close',
+  'change',
+  'change_abs',
+  'volume',
+  'logoid',
+  'average_volume_10d_calc',
+  'average_volume_30d_calc',
+] as const;
 
 function textHasArabicScript(s: string): boolean {
   return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/.test(s);
@@ -27,6 +38,10 @@ export type EgxMoverRow = {
   changePct: number;
   changeAbs: number;
   volume: number;
+  avgVolume10d: number | null;
+  avgVolume30d: number | null;
+  rvol10: number | null;
+  rvol30: number | null;
 };
 
 type ScannerPayload = {
@@ -37,6 +52,7 @@ type ScannerPayload = {
 function sortForList(list: EgxMoverList): { sortBy: string; sortOrder: 'asc' | 'desc' } {
   if (list === 'gainers') return { sortBy: 'change', sortOrder: 'desc' };
   if (list === 'losers') return { sortBy: 'change', sortOrder: 'asc' };
+  if (list === 'unusual') return { sortBy: 'relative_volume_10d_calc', sortOrder: 'desc' };
   return { sortBy: 'volume', sortOrder: 'desc' };
 }
 
@@ -45,8 +61,28 @@ function num(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function optionalPositiveVolume(v: unknown): number | null {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n);
+}
+
+export function moverRowFromScannerData(s: string, d: unknown[]): EgxMoverRow {
+  return parseRow({ s, d });
+}
+
 function parseRow(row: { s: string; d: unknown[] }): EgxMoverRow {
-  const [rawName, description, close, change, changeAbs, volume, logoidRaw] = row.d;
+  const [
+    rawName,
+    description,
+    close,
+    change,
+    changeAbs,
+    volume,
+    logoidRaw,
+    avg10Raw,
+    avg30Raw,
+  ] = row.d;
   const id = row.s;
   const symbol = id.includes(':') ? (id.split(':')[1] ?? id) : id;
   const sym = symbol.trim();
@@ -59,6 +95,9 @@ function parseRow(row: { s: string; d: unknown[] }): EgxMoverRow {
   /** Arabic company line from scanner when DB has no `instruments` row. */
   const nameArFromScanner = descIsAr ? desc : undefined;
   const logoid = String(logoidRaw ?? '').trim();
+  const volumeToday = Math.round(num(volume));
+  const avgVolume10d = optionalPositiveVolume(avg10Raw);
+  const avgVolume30d = optionalPositiveVolume(avg30Raw);
   return {
     id,
     symbol: sym,
@@ -68,12 +107,16 @@ function parseRow(row: { s: string; d: unknown[] }): EgxMoverRow {
     close: Math.round(num(close) * 10000) / 10000,
     changePct: Math.round(num(change) * 10000) / 10000,
     changeAbs: Math.round(num(changeAbs) * 10000) / 10000,
-    volume: Math.round(num(volume)),
+    volume: volumeToday,
+    avgVolume10d,
+    avgVolume30d,
+    rvol10: relativeVolume(volumeToday, avgVolume10d),
+    rvol30: relativeVolume(volumeToday, avgVolume30d),
   };
 }
 
 /**
- * EGX movers: gainers (change ↓ sort desc), losers (change ↑ sort asc), volume leaders.
+ * EGX movers: gainers, losers, volume leaders, or unusual 10-day relative volume.
  */
 export async function scanEgyptMovers(
   list: EgxMoverList,

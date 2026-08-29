@@ -36,7 +36,7 @@ function indicatorCacheKey(q: string, limit: number): string {
 }
 
 function egxMoversCacheKey(list: EgxMoverList, offset: number, limit: number): string {
-  return `cache:stocks:v1:egxmov:v5:${list}:${offset}:${limit}`;
+  return `cache:stocks:v1:egxmov:v6:${list}:${offset}:${limit}`;
 }
 
 function egxIndicesQuotesCacheKey(limit: number, offset: number): string {

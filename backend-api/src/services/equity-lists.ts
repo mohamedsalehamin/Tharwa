@@ -12,6 +12,10 @@ import { prisma } from '../lib/prisma.js';
 import { getOrFetchJsonCache } from '../lib/redis-cache.js';
 import { scanEgyptSymbolsWithSector } from './connectors/tradingview-scanner-egypt.js';
 import { listMarketEgxStocksCached, type EquityListRow } from './curated-equities.js';
+import {
+  aggregateSectorHeatmap,
+  type SectorHeatmapCell,
+} from './sector-heatmap.js';
 
 const LISTS_TTL_SEC = 300;
 const LIST_STOCKS_TTL_SEC = 90;
@@ -22,6 +26,10 @@ function listsCacheKey(): string {
 
 function listStocksCacheKey(code: string): string {
   return `cache:eq:v1:equity-list:${code}:stocks`;
+}
+
+function heatmapCacheKey(): string {
+  return 'cache:eq:v1:equity-lists:heatmap:v1';
 }
 
 function parseTvAliases(raw: Prisma.JsonValue | null): string[] {
@@ -223,6 +231,45 @@ export async function listStocksForEquityList(
   return { list, items: data.items, bundleFetchedAt: data.bundleFetchedAt };
 }
 
+export async function getSectorHeatmap(
+  env: Env,
+  redis: Redis,
+  log: FastifyBaseLogger,
+): Promise<{ items: SectorHeatmapCell[]; fetchedAt: string }> {
+  const { data } = await getOrFetchJsonCache(
+    redis,
+    heatmapCacheKey(),
+    LIST_STOCKS_TTL_SEC,
+    log,
+    async () => {
+      const [lists, market] = await Promise.all([
+        prisma.equityList.findMany({
+          where: { isPublished: true, kind: EquityListKind.sector },
+          orderBy: [{ sortOrder: 'asc' }, { titleEn: 'asc' }],
+          include: { members: { select: { symbol: true } } },
+        }),
+        listMarketEgxStocksCached(env, redis, log),
+      ]);
+      const quotes = new Map<string, number | null>();
+      for (const it of market.items) {
+        quotes.set(it.symbol.trim().toUpperCase(), it.changePct);
+      }
+      const items = aggregateSectorHeatmap(
+        lists.map((row) => ({
+          code: row.code,
+          titleAr: row.titleAr,
+          titleEn: row.titleEn,
+          sortOrder: row.sortOrder,
+          symbols: row.members.map((m) => m.symbol),
+        })),
+        quotes,
+      );
+      return { items, fetchedAt: market.bundleFetchedAt };
+    },
+  );
+  return { items: data.items, fetchedAt: data.fetchedAt };
+}
+
 export async function setEquityListMembers(
   listId: string,
   symbols: string[],
@@ -351,6 +398,6 @@ export async function importSectorMembersFromTradingView(
 
 export async function invalidateEquityListCaches(redis: Redis): Promise<void> {
   const keys = await redis.keys('cache:eq:v1:equity-list:*');
-  const all = [listsCacheKey(), ...keys];
+  const all = [listsCacheKey(), heatmapCacheKey(), ...keys];
   if (all.length > 0) await redis.del(...all);
 }

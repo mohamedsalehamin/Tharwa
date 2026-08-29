@@ -25,6 +25,8 @@ const REQUIRED_PATHS = [
   '/v1/zakat/prefill',
   '/v1/zakat/methodology',
   '/v1/zakat/sessions',
+  '/v1/stocks/egypt/movers',
+  '/v1/stocks/egypt/lists/heatmap',
   '/health',
 ] as const;
 

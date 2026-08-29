@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { DISCLAIMER_COMBINED } from '../../i18n/disclaimers.js';
 import {
   getPublishedEquityListByCode,
+  getSectorHeatmap,
   listPublishedEquityLists,
   listStocksForEquityList,
 } from '../../services/equity-lists.js';
@@ -10,6 +11,24 @@ import { AppError, sendError } from '../../lib/errors.js';
 
 /** Published EGX equity lists (sectors + thematic). Register before `/stocks/:symbol`. */
 export const v1EquityListsRoutes: FastifyPluginAsync = async (app) => {
+  app.get('/stocks/egypt/lists/heatmap', async (_req, reply) => {
+    try {
+      const { items, fetchedAt } = await getSectorHeatmap(
+        app.ctx.env,
+        app.ctx.redis,
+        app.log,
+      );
+      return reply.send({
+        disclaimer: DISCLAIMER_COMBINED,
+        fetchedAt,
+        items,
+      });
+    } catch (e) {
+      if (!reply.sent) sendError(reply, e);
+      return;
+    }
+  });
+
   app.get('/stocks/egypt/lists', async (_req, reply) => {
     try {
       const lists = await listPublishedEquityLists(app.ctx.redis, app.log);

@@ -29,7 +29,7 @@ const egyptBrowseQuery = z.object({
   offset: z.coerce.number().int().min(0).max(2000).default(0),
 });
 
-const egxMoverList = z.enum(['gainers', 'losers', 'volume']);
+const egxMoverList = z.enum(['gainers', 'losers', 'volume', 'unusual']);
 
 const egxMoversQuery = z.object({
   list: egxMoverList.default('gainers'),

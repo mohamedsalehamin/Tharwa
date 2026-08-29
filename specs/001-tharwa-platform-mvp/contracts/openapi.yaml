@@ -196,6 +196,95 @@ paths:
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
+  /v1/stocks/egypt/movers:
+    get:
+      tags: [Market]
+      summary: EGX movers (gainers, losers, volume, unusual relative volume)
+      description: >
+        Indicative TradingView Egypt scanner snapshot. `unusual` sorts by 10-day
+        relative volume. Volume averages and RVOL are informational — not a
+        trade signal.
+      operationId: listEgxMovers
+      parameters:
+        - name: list
+          in: query
+          schema:
+            type: string
+            enum: [gainers, losers, volume, unusual]
+            default: gainers
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 500
+            default: 0
+        - name: locale
+          in: query
+          schema:
+            type: string
+            enum: [ar, en]
+      responses:
+        "200":
+          description: Mover rows with optional RVOL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [disclaimer, items]
+                properties:
+                  disclaimer:
+                    type: string
+                  list:
+                    type: string
+                  fetchedAt:
+                    type: string
+                    format: date-time
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EgxMoverRow"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/stocks/egypt/lists/heatmap:
+    get:
+      tags: [Market]
+      summary: Sector heatmap (equal-weight mean change of published sector lists)
+      description: >
+        Aggregates published `sector` equity lists against the current EGX market
+        snapshot. Informational only — not a recommendation.
+      operationId: getSectorHeatmap
+      responses:
+        "200":
+          description: One cell per published sector list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [disclaimer, items]
+                properties:
+                  disclaimer:
+                    type: string
+                  fetchedAt:
+                    type: string
+                    format: date-time
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SectorHeatmapCell"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
   /v1/stocks/{symbol}:
     get:
       tags: [Market]
@@ -2146,6 +2235,68 @@ components:
                 available for the instrument.
               items:
                 type: number
+
+    EgxMoverRow:
+      type: object
+      required: [id, symbol, name, close, changePct, changeAbs, volume]
+      properties:
+        id:
+          type: string
+        symbol:
+          type: string
+        name:
+          type: string
+        nameAr:
+          type: string
+        displayName:
+          type: string
+        instrumentId:
+          type: string
+          format: uuid
+        logoUrl:
+          type: string
+          nullable: true
+        close:
+          type: number
+        changePct:
+          type: number
+        changeAbs:
+          type: number
+        volume:
+          type: integer
+        avgVolume10d:
+          type: integer
+          nullable: true
+        avgVolume30d:
+          type: integer
+          nullable: true
+        rvol10:
+          type: number
+          nullable: true
+          description: Today volume / 10-session average volume
+        rvol30:
+          type: number
+          nullable: true
+          description: Today volume / 30-session average volume
+
+    SectorHeatmapCell:
+      type: object
+      required: [code, titleAr, titleEn, memberCount, quotedCount]
+      properties:
+        code:
+          type: string
+        titleAr:
+          type: string
+        titleEn:
+          type: string
+        memberCount:
+          type: integer
+        quotedCount:
+          type: integer
+        changePct:
+          type: number
+          nullable: true
+          description: Equal-weight mean of quoted members' changePct
 
     EquityDetail:
       allOf:
